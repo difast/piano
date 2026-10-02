@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PREVIEW } from './env';
 import { AppProvider } from './context/AppContext';
+import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './components/RequireAuth';
 import Home from './pages/Home';
@@ -12,6 +13,8 @@ import SongDetail from './pages/SongDetail';
 import PianoPage from './pages/PianoPage';
 import ProgressPage from './pages/ProgressPage';
 import Profile from './pages/Profile';
+import Scores from './pages/Scores';
+import ScoreDetail from './pages/ScoreDetail';
 import Auth from './pages/Auth';
 import { Consent, Privacy, Terms } from './pages/Legal';
 
@@ -32,6 +35,7 @@ const guard = (el: JSX.Element) => <RequireAuth>{el}</RequireAuth>;
 
 export default function App() {
   return (
+    <ToastProvider>
     <AppProvider>
       <Router>
         <ScrollToTop />
@@ -44,6 +48,8 @@ export default function App() {
             <Route path="learn/:id" element={guard(<Lesson />)} />
             <Route path="songs" element={<Songs />} />
             <Route path="songs/:id" element={guard(<SongDetail />)} />
+            <Route path="scores" element={<Scores />} />
+            <Route path="scores/:id" element={<ScoreDetail />} />
             <Route path="piano" element={guard(<PianoPage />)} />
             <Route path="progress" element={guard(<ProgressPage />)} />
             <Route path="profile" element={guard(<Profile />)} />
@@ -55,5 +61,6 @@ export default function App() {
         </Routes>
       </Router>
     </AppProvider>
+    </ToastProvider>
   );
 }

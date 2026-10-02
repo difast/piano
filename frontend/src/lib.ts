@@ -1,4 +1,4 @@
-import { LESSONS } from './data/course';
+import { LESSONS, LEVELS } from './data/course';
 import type { Lesson } from './data/types';
 
 export const formatTime = (sec: number) => {
@@ -27,4 +27,18 @@ export function shiftDay(day: string, delta: number): string {
 export const weekdayShort = (day: string) => {
   const d = new Date(`${day}T12:00:00Z`);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('ru-RU', { weekday: 'short', timeZone: 'UTC' });
+};
+
+export const levelFor = (completedCount: number) => [...LEVELS].reverse().find((l) => completedCount >= l.from) ?? LEVELS[0];
+
+/** Серия занятий: сколько дней подряд (включая сегодня) были занятия. */
+export function practiceStreak(history: Record<string, number>, today: string): number {
+  let n = 0;
+  for (let d = today; (history[d] ?? 0) > 0; d = shiftDay(d, -1)) n++;
+  return n;
+}
+
+export const formatClock = (sec: number) => {
+  const s = Math.max(0, Math.floor(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };

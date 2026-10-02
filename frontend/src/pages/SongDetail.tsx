@@ -9,6 +9,9 @@ import { track } from '../services/analytics';
 import { Cover } from './Songs';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Piano } from '../components/Piano';
+import { ScoreDownload } from '../components/ScoreDownload';
+import { useScores } from '../hooks/useScores';
+import { fitRange } from '../services/notes';
 import { LimitNotice } from '../components/LimitNotice';
 import { Notice } from '../components/Status';
 
@@ -17,6 +20,7 @@ export default function SongDetail() {
   const song = SONGS.find((s) => s.id === id);
   const { learnedSongs, setSongLearned, limitReached } = useApp();
   const [showHint, setShowHint] = useState(false);
+  const { scores } = useScores();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   usePageMeta(song ? `${song.title} — ${song.artist}` : 'Песня', song?.description ?? 'Песня для пианино.');
@@ -26,6 +30,8 @@ export default function SongDetail() {
   if (!song) return <><h1>Песня не найдена</h1><Link to="/songs">← К каталогу</Link></>;
   const learned = learnedSongs.includes(song.id);
   const hasNotes = song.notes.length > 0;
+  const range = fitRange(hasNotes ? song.notes : ['C4', 'C5'], 8);
+  const songScores = (scores ?? []).filter((x) => x.songId === song.id);
 
   const toggle = async () => {
     setBusy(true); setError('');
@@ -56,10 +62,21 @@ export default function SongDetail() {
           <section className="card">
             <h3>Попробуйте на пианино</h3>
             {hasNotes && <button className="btn small" onClick={() => setShowHint((v) => !v)}>{showHint ? 'Скрыть подсказку' : 'Подсветить ноты песни'}</button>}
-            <Piano octaves={3} hint={showHint ? song.notes : []} showKeyboardLabels={false} />
+            <Piano from={range.from} to={range.to} labels="both" keyboard hint={showHint ? song.notes : []} />
           </section>
         </>
       )}
+      <section className="card">
+        <h3>Ноты для фортепиано</h3>
+        {songScores.length === 0 ? <p className="muted" style={{ margin: 0 }}>Нотный текст для этой песни пока не добавлен. Загляните в раздел «<Link to="/scores">Ноты</Link>».</p> : (
+          songScores.map((sc) => (
+            <div key={sc.id} className="score-row">
+              <div><b>{sc.title}</b><br /><Link to={`/scores/${sc.id}`} className="muted small">Подробнее о нотах</Link></div>
+              <ScoreDownload score={sc} />
+            </div>
+          ))
+        )}
+      </section>
       {error && <Notice kind="error">{error}</Notice>}
       <div className="actions">
         <button className={`btn ${learned ? '' : 'primary'}`} onClick={toggle} disabled={busy}>

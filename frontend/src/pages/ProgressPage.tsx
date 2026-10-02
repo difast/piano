@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { LESSONS, LEVELS } from '../data/course';
+import { LESSONS } from '../data/course';
 import { SONGS } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { formatTime, shiftDay, weekdayShort } from '../lib';
+import { formatTime, levelFor, shiftDay, weekdayShort } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Empty } from '../components/Status';
 
@@ -11,16 +11,16 @@ const dayLabel = (day: string, today: string) =>
 
 export default function ProgressPage() {
   usePageMeta('Прогресс', 'Ваш уровень, пройденные уроки, выученные песни и статистика занятий за неделю.');
-  const { completedLessons, learnedSongs, todaySeconds, isPro, currentLessonId, progress } = useApp();
+  const { completedLessons, learnedSongs, todaySeconds, isPro, currentLessonId, progress, history } = useApp();
   const done = completedLessons.length;
   const pct = Math.round((done / LESSONS.length) * 100);
-  const level = [...LEVELS].reverse().find((l) => done >= l.from)!;
+  const level = levelFor(done);
 
   const days = Array.from({ length: 7 }, (_, i) => shiftDay(progress.today, i - 6));
-  const week = days.map((d) => ({ day: d, sec: progress.history[d] ?? 0 }));
+  const week = days.map((d) => ({ day: d, sec: history[d] ?? 0 }));
   const weekTotal = week.reduce((a, b) => a + b.sec, 0);
   const max = Math.max(60, ...week.map((w) => w.sec));
-  const earlier = Object.entries(progress.history).filter(([d, s]) => s > 0 && d < days[0]).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
+  const earlier = Object.entries(history).filter(([d, s]) => s > 0 && d < days[0]).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
 
   return (
     <>

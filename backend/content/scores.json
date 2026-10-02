@@ -1,0 +1,9 @@
+[
+  { "id": "ode-to-joy", "title": "Ода к радости", "composer": "Л. ван Бетховен", "difficulty": "beginner", "genre": "Классика", "description": "Главная тема финала Девятой симфонии в облегчённом виде для начинающих.", "pdf": null, "songId": "ode-to-joy" },
+  { "id": "twinkle-twinkle", "title": "Twinkle, Twinkle, Little Star", "composer": "Народная", "difficulty": "beginner", "genre": "Народная", "description": "Детская песня с повторяющимися фразами — удобна для первых шагов.", "pdf": null, "songId": "twinkle" },
+  { "id": "jingle-bells", "title": "Jingle Bells", "composer": "Дж. Пирпонт", "difficulty": "beginner", "genre": "Праздничная", "description": "Весёлая зимняя песня, которую легко запомнить.", "pdf": null, "songId": "jingle" },
+  { "id": "minuet-in-g", "title": "Менуэт соль мажор", "composer": "К. Петцольд (ранее приписывался И. С. Баху)", "difficulty": "beginner", "genre": "Классика", "description": "Популярная пьеса для первых лет обучения: тренирует независимость рук.", "pdf": null },
+  { "id": "fur-elise", "title": "К Элизе", "composer": "Л. ван Бетховен", "difficulty": "intermediate", "genre": "Классика", "description": "Знаменитая багатель. Начало звучит просто, но требует аккуратной беглости.", "pdf": null, "songId": "fur-elise" },
+  { "id": "moonlight-sonata", "title": "Лунная соната (1 часть)", "composer": "Л. ван Бетховен", "difficulty": "intermediate", "genre": "Классика", "description": "Медленная глубокая пьеса: ровные триоли и певучая мелодия.", "pdf": null, "songId": "moonlight" },
+  { "id": "clair-de-lune", "title": "Лунный свет", "composer": "К. Дебюсси", "difficulty": "advanced", "genre": "Классика", "description": "Поэтичная пьеса из «Бергамасской сюиты». Требует контроля звука и педали.", "pdf": null, "songId": "clair-de-lune" }
+]

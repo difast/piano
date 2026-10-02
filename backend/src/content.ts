@@ -8,20 +8,16 @@ export const FREE_DAILY_LIMIT_SEC = 15 * 60;
 /** Версия юридических документов — записывается вместе с согласием. Совпадает с frontend/src/data/legal.ts */
 export const LEGAL_VERSION = '2026-10-02';
 
-export const LESSONS: { id: string; prerequisites: string[] }[] = [
-  { id: 'l1', prerequisites: [] },
-  { id: 'l2', prerequisites: ['l1'] },
-  { id: 'l3', prerequisites: ['l2'] },
-  { id: 'l4', prerequisites: ['l3'] },
-  { id: 'l5', prerequisites: ['l4'] },
-  { id: 'l6', prerequisites: ['l5'] },
-  { id: 'l7', prerequisites: ['l6'] },
-  { id: 'l8', prerequisites: ['l7'] },
-  { id: 'l9', prerequisites: ['l8'] },
-  { id: 'l10', prerequisites: ['l9'] },
-  { id: 'l11', prerequisites: ['l10'] },
-  { id: 'l12', prerequisites: ['l11'] },
-];
+export const LESSONS: { id: string; prerequisites: string[] }[] = Array.from({ length: 24 }, (_, i) => ({
+  id: `l${i + 1}`,
+  prerequisites: i === 0 ? [] : [`l${i}`],
+}));
+
+/**
+ * Миграция курса с 12 на 24 урока: сколько новых уроков считать пройденными,
+ * если пользователь подряд прошёл k старых уроков (индекс k-1).
+ */
+export const OLD_TO_NEW_COMPLETED = [1, 4, 6, 7, 8, 11, 14, 17, 19, 20, 22, 24];
 
 export const SONG_IDS: string[] = [
   'interstellar', 'nuvole-bianche', 'ode-to-joy', 'twinkle', 'jingle',

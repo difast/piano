@@ -3,6 +3,8 @@ import { db } from './db.ts';
 import { COOKIE, createSession, destroySession, hashPassword, loadUser, rateLimit, readCookie, requireUser, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
+import { loadScores, pdfPath, publicScore } from './scores.ts';
+import { createReadStream } from 'node:fs';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -29,6 +31,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     res.setHeader('Vary', 'Origin');
     if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   }
@@ -102,6 +105,19 @@ api.post('/lessons/:id/complete', requireUser, (req, res) => {
   res.json(snapshot(req));
 });
 
+// Сохраняем текущий этап незавершённого урока, чтобы продолжить с того же места на любом устройстве.
+api.put('/lessons/:id/stage', requireUser, (req, res) => {
+  const lesson = LESSONS.find((l) => l.id === String(req.params.id));
+  const stage = Math.floor(Number(req.body?.stage));
+  if (!lesson) { res.status(404).json({ error: 'Урок не найден' }); return; }
+  if (!Number.isFinite(stage) || stage < 0 || stage > 50) { res.status(400).json({ error: 'Некорректный этап' }); return; }
+  const done = getState(req.user!.id, req.user!.isPro).completedLessons;
+  if (!done.includes(lesson.id) && !lesson.prerequisites.every((p) => done.includes(p))) { res.status(403).json({ error: 'Урок ещё закрыт' }); return; }
+  db.prepare(`INSERT INTO lesson_stage (user_id, lesson_id, stage) VALUES (?, ?, ?)
+              ON CONFLICT(user_id, lesson_id) DO UPDATE SET stage = excluded.stage, updated_at = CURRENT_TIMESTAMP`).run(req.user!.id, lesson.id, stage);
+  res.json({ ok: true });
+});
+
 api.put('/songs/:id/learned', requireUser, (req, res) => {
   const songId = String(req.params.id);
   if (!SONG_IDS.includes(songId)) { res.status(404).json({ error: 'Песня не найдена' }); return; }
@@ -122,6 +138,29 @@ api.post('/dev/pro', requireUser, (req, res) => {
   db.prepare('UPDATE users SET is_pro = ? WHERE id = ?').run(req.body?.isPro ? 1 : 0, req.user!.id);
   req.user!.isPro = !!req.body?.isPro;
   res.json(snapshot(req));
+});
+
+// ---- Ноты. Каталог открыт всем, PDF отдаётся только вошедшему пользователю с активным Pro.
+api.get('/scores', (_req, res) => { res.json({ scores: loadScores().map(publicScore) }); });
+
+api.get('/scores/:id', (req, res) => {
+  const e = loadScores().find((x) => x.id === String(req.params.id));
+  if (!e) { res.status(404).json({ error: 'Ноты не найдены' }); return; }
+  res.json({ score: publicScore(e) });
+});
+
+api.get('/scores/:id/download', requireUser, (req, res) => {
+  const e = loadScores().find((x) => x.id === String(req.params.id));
+  if (!e) { res.status(404).json({ error: 'Ноты не найдены' }); return; }
+  if (!req.user!.isPro) { res.status(403).json({ error: 'Скачивание нот доступно на тарифе Pro', code: 'pro_required' }); return; }
+  const file = pdfPath(e);
+  if (!file) { res.status(404).json({ error: 'PDF для этого произведения пока не загружен' }); return; }
+  const ascii = `${e.id}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(e.title)}.pdf`);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  createReadStream(file).on('error', () => { if (!res.headersSent) res.status(500).end(); else res.destroy(); }).pipe(res);
 });
 
 api.post('/events', (req, res) => {

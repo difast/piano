@@ -10,7 +10,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
     "start": "NODE_ENV=production tsx src/index.ts",
-    "check:sync": "tsx scripts/check-content-sync.ts"
+    "check:sync": "tsx scripts/check-content-sync.ts",
+    "add-score": "tsx scripts/add-score.ts"
   },
   "dependencies": {
     "express": "^5.2.1",

@@ -1,26 +1,24 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { formatTime } from '../lib';
 
-export const LIMIT_MESSAGE = 'Ты достиг дневного лимита. Возвращайся завтра или подключи Pro для безлимитных занятий.';
+export const LIMIT_TITLE = 'На сегодня достаточно';
+export const LIMIT_TEXT = 'Ты использовал свои 15 минут бесплатных занятий.';
+export const LIMIT_SUB = 'Прогресс сохранён. Возвращайся завтра или перейди на Pro, чтобы заниматься без ограничений.';
 
+/** Встроенная карточка вместо содержимого урока/песни/пианино, когда дневной лимит исчерпан. */
 export function LimitNotice() {
+  const { user } = useApp();
   return (
-    <div className="limit-notice" role="alert">
-      <p>{LIMIT_MESSAGE}</p>
-      <Link to="/profile" className="btn primary">Подключить Pro</Link>
-    </div>
-  );
-}
-
-export function TimeBadge() {
-  const { todaySeconds, isPro, progress } = useApp();
-  if (isPro) return <span className="badge pro">Pro · без лимита</span>;
-  const pct = Math.min(100, (todaySeconds / progress.limitSeconds) * 100);
-  return (
-    <div className="time-badge" title="Дневной лимит бесплатных занятий">
-      <span>{formatTime(Math.min(todaySeconds, progress.limitSeconds))} / {formatTime(progress.limitSeconds)}</span>
-      <div className="bar"><div style={{ width: `${pct}%` }} /></div>
+    <div className="limit-notice big" role="alert">
+      <div>
+        <h2>{LIMIT_TITLE}</h2>
+        <p><b>{LIMIT_TEXT}</b></p>
+        <p>{LIMIT_SUB}</p>
+      </div>
+      <div className="actions">
+        <Link to={user ? '/progress' : '/'} className="btn">Продолжить завтра</Link>
+        <Link to="/profile" className="btn primary">Заниматься без ограничений → Pro</Link>
+      </div>
     </div>
   );
 }

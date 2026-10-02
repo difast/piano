@@ -6,7 +6,13 @@ import { LESSONS } from '../data/course';
 import { SONGS } from '../data/songs';
 import { FREE_DAILY_LIMIT_SEC } from '../data/config';
 
-interface U { id: number; email: string; name: string; password: string; isPro: boolean; lessons: string[]; songs: string[]; practice: Record<string, number> }
+interface U { id: number; email: string; name: string; password: string; isPro: boolean; lessons: string[]; songs: string[]; stages?: Record<string, number>; practice: Record<string, number> }
+
+const SCORES = [
+  { id: 'ode-to-joy', title: 'Ода к радости', composer: 'Л. ван Бетховен', difficulty: 'beginner', genre: 'Классика', description: 'Главная тема финала Девятой симфонии в облегчённом виде.', songId: 'ode-to-joy', pages: null, hasPdf: false },
+  { id: 'minuet-in-g', title: 'Менуэт соль мажор', composer: 'К. Петцольд', difficulty: 'beginner', genre: 'Классика', description: 'Популярная пьеса для первых лет обучения.', songId: null, pages: null, hasPdf: false },
+  { id: 'fur-elise', title: 'К Элизе', composer: 'Л. ван Бетховен', difficulty: 'intermediate', genre: 'Классика', description: 'Знаменитая багатель.', songId: 'fur-elise', pages: null, hasPdf: false },
+];
 interface DB { users: U[]; session: number | null }
 
 const KEY = 'piano:preview-db';
@@ -25,7 +31,7 @@ const json = (status: number, body: unknown) =>
 function state(u: U) {
   const t = today();
   const todaySeconds = u.practice[t] ?? 0;
-  return { completedLessons: u.lessons, learnedSongs: u.songs, history: u.practice, today: t, todaySeconds, limitSeconds: FREE_DAILY_LIMIT_SEC, limitReached: !u.isPro && todaySeconds >= FREE_DAILY_LIMIT_SEC };
+  return { completedLessons: u.lessons, learnedSongs: u.songs, lessonStages: u.stages ?? {}, history: u.practice, today: t, todaySeconds, limitSeconds: FREE_DAILY_LIMIT_SEC, limitReached: !u.isPro && todaySeconds >= FREE_DAILY_LIMIT_SEC };
 }
 const snap = (u: U) => ({ user: { id: u.id, email: u.email, name: u.name, isPro: u.isPro }, state: state(u), devTools: true });
 
@@ -79,6 +85,18 @@ async function handle(path: string, body: Record<string, unknown>): Promise<Resp
     if (add > 0) { lastTick = now; u.practice[t] = used + add; }
     return json(200, { state: state(u) });
   });
+  m = /^\/lessons\/([^/]+)\/stage$/.exec(path);
+  if (m) return need((u) => { u.stages = { ...(u.stages ?? {}), [m![1]]: Math.max(0, Number(body.stage) || 0) }; return json(200, { ok: true }); });
+  if (path === '/scores') return json(200, { scores: SCORES });
+  m = /^\/scores\/([^/]+)(\/download)?$/.exec(path);
+  if (m) {
+    const sc = SCORES.find((x) => x.id === m![1]);
+    if (!sc) return json(404, { error: 'Ноты не найдены' });
+    if (!m[2]) return json(200, { score: sc });
+    if (!me) return json(401, { error: 'Требуется вход в аккаунт' });
+    if (!me.isPro) return json(403, { error: 'Скачивание нот доступно на тарифе Pro', code: 'pro_required' });
+    return json(404, { error: 'PDF для этого произведения пока не загружен (демо)' });
+  }
   if (path === '/dev/pro') return need((u) => { u.isPro = !!body.isPro; return json(200, snap(u)); });
   if (path === '/events') return json(204, null);
   return json(404, { error: 'Not found' });

@@ -11,6 +11,8 @@ export const todayKey = (now = new Date()) =>
 export interface ProgressState {
   completedLessons: string[];
   learnedSongs: string[];
+  /** сохранённый этап (с 0) в незавершённых уроках */
+  lessonStages: Record<string, number>;
   history: Record<string, number>;
   today: string;
   todaySeconds: number;
@@ -21,14 +23,15 @@ export interface ProgressState {
 export function getState(userId: number, isPro: boolean): ProgressState {
   const completedLessons = (db.prepare('SELECT lesson_id AS id FROM completed_lessons WHERE user_id = ? ORDER BY completed_at').all(userId) as { id: string }[]).map((r) => r.id);
   const learnedSongs = (db.prepare('SELECT song_id AS id FROM learned_songs WHERE user_id = ?').all(userId) as { id: string }[]).map((r) => r.id);
+  const lessonStages = Object.fromEntries((db.prepare('SELECT lesson_id AS id, stage FROM lesson_stage WHERE user_id = ?').all(userId) as { id: string; stage: number }[]).map((r) => [r.id, r.stage]));
   const rows = db.prepare('SELECT day, seconds FROM practice WHERE user_id = ? ORDER BY day DESC LIMIT 60').all(userId) as { day: string; seconds: number }[];
   const history = Object.fromEntries(rows.map((r) => [r.day, r.seconds]));
   const today = todayKey();
   const todaySeconds = history[today] ?? 0;
-  return { completedLessons, learnedSongs, history, today, todaySeconds, limitSeconds: LIMIT_SECONDS, limitReached: !isPro && todaySeconds >= LIMIT_SECONDS };
+  return { completedLessons, learnedSongs, lessonStages, history, today, todaySeconds, limitSeconds: LIMIT_SECONDS, limitReached: !isPro && todaySeconds >= LIMIT_SECONDS };
 }
 
-const MAX_CLAIM = 15; // секунд за один тик
+const MAX_CLAIM = 30; // секунд за один тик (клиент считает по реальному времени и может копить до 5–10 с)
 const lastTick = new Map<number, number>();
 
 /**

@@ -33,7 +33,7 @@ export default function Profile() {
       {!isPro && (
         <div className="card">
           <h3>Pro — безлимитные занятия</h3>
-          <p>В Free доступно 15 минут занятий в день. Pro снимает ограничение.</p>
+          <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
           <div className="plans">
             {PLANS.map((p) => <button key={p.id} className="btn primary" onClick={() => buy(p.id)}>{p.title}{p.note && <small> ({p.note})</small>}</button>)}
           </div>

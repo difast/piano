@@ -41,6 +41,23 @@ cd frontend && npm install && npm run dev     # сайт на :5173 (запро�
 
 **Cookie входа.** Если фронт и бэк — поддомены одного сайта (`app.example.ru` и `api.example.ru`), оставьте `lax`. Если это разные сайты, нужен `COOKIE_SAMESITE=none` и HTTPS на обоих, но Safari и часть браузеров блокируют такие сторонние cookie — используйте поддомены одного домена.
 
+## Ноты (PDF): как добавлять
+Каталог нот — `backend/content/scores.json` (метаданные), сами файлы — `backend/content/scores/<id>.pdf`.
+Папка **не раздаётся как статика**: PDF отдаёт только защищённый эндпоинт `GET /api/scores/:id/download`
+(нужен вход и активный Pro; иначе 401/403). Страницы фронтенда менять не нужно — каталог приходит с сервера.
+
+```
+cd backend
+npm run add-score -- --file ~/Downloads/minuet.pdf --id minuet-in-g --title "Менуэт соль мажор" \
+  --composer "К. Петцольд" --difficulty beginner --genre "Классика" --description "..." [--songId ode-to-joy] [--pages 2]
+```
+Скрипт копирует PDF без изменений и добавляет/обновляет запись. `--songId` связывает ноты с песней (блок «Ноты для фортепиано» на странице песни).
+
+## Курс и уроки
+Уроки лежат в `frontend/src/data/lessons/*.ts` (24 урока, у каждого этапы и блоки: текст, схема клавиш, упражнение, тест, ритм, метроном, чек-лист).
+Проверка контента: `cd backend && npx tsx ../frontend/scripts/validate-lessons.ts`.
+Видео в уроках необязательны (`videoUrl`).
+
 ## Общий контент
 Бэкенду нужны id уроков, цепочки `prerequisites`, id песен, лимит и версия документов — они лежат в `backend/src/content.ts`. При изменении уроков, песен, лимита или `LEGAL_VERSION` во фронтенде запустите `cd backend && npm run check:sync` (нужен полный чекаут репозитория): он сообщит о рассинхроне.
 
