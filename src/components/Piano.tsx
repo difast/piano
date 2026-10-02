@@ -63,6 +63,8 @@ export function Piano({ startOctave = 3, octaves = 3, disabled, hint = [], showK
 
   const keyProps = (note: string) => ({
     onPointerDown: (e: React.PointerEvent) => { e.preventDefault(); down(note); },
+    // зажатая мышь/палец скользит на соседнюю клавишу — играем её (глиссандо мышью)
+    onPointerEnter: (e: React.PointerEvent) => { if (e.buttons === 1 && e.pointerType === 'mouse') down(note); },
     onPointerUp: () => up(note),
     onPointerLeave: () => up(note),
     onPointerCancel: () => up(note),

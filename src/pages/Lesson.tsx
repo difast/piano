@@ -1,28 +1,52 @@
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { LESSONS } from '../data/course';
 import { useApp } from '../context/AppContext';
+import { isLessonUnlocked } from '../lib';
 import { usePracticeTimer } from '../hooks/usePracticeTimer';
+import { usePageMeta } from '../hooks/usePageMeta';
+import { track } from '../services/analytics';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Piano } from '../components/Piano';
 import { LimitNotice } from '../components/LimitNotice';
+import { Notice } from '../components/Status';
 
 export default function Lesson() {
   const { id } = useParams();
   const idx = LESSONS.findIndex((l) => l.id === id);
   const lesson = LESSONS[idx];
-  const { completedLessons, toggleLesson, limitReached } = useApp();
-  usePracticeTimer(!!lesson);
+  const { completedLessons, completeLesson, limitReached, currentLessonId } = useApp();
+  const unlocked = !!lesson && (completedLessons.includes(lesson.id) || isLessonUnlocked(lesson, completedLessons));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [justDone, setJustDone] = useState(false);
+  const redirectNotice = (useLocation().state as { notice?: string } | null)?.notice;
+  usePageMeta(lesson ? lesson.title : 'Урок', lesson ? lesson.description : 'Урок курса игры на пианино.');
+  usePracticeTimer(unlocked);
+  useEffect(() => { if (unlocked) track('lesson_start', { lessonId: lesson.id }); }, [unlocked, lesson?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setJustDone(false); setError(''); }, [id]);
 
   if (!lesson) return <><h1>Урок не найден</h1><Link to="/learn">← К списку уроков</Link></>;
+  if (!unlocked) {
+    return <Navigate to={currentLessonId ? `/learn/${currentLessonId}` : '/learn'} replace state={{ notice: 'Этот урок пока закрыт. Сначала пройдите предыдущие — вот ваш текущий урок.' }} />;
+  }
   const done = completedLessons.includes(lesson.id);
-  const next = LESSONS[idx + 1];
+  const next = LESSONS.find((l) => l.order === lesson.order + 1);
+
+  const finish = async () => {
+    setBusy(true); setError('');
+    try { await completeLesson(lesson.id); setJustDone(true); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  };
 
   return (
     <>
+      {redirectNotice && <Notice>{redirectNotice}</Notice>}
       <Link to="/learn" className="muted">← Все уроки</Link>
-      <p className="muted small" style={{ marginTop: 16 }}>Урок {idx + 1} из {LESSONS.length}</p>
+      <p className="muted small" style={{ marginTop: 16 }}>Урок {lesson.order} из {LESSONS.length}</p>
       <h1>{lesson.title}</h1>
-      <p className="lead">{lesson.summary}</p>
+      <p className="lead">{lesson.description}</p>
 
       {limitReached ? <LimitNotice /> : (
         <>
@@ -40,11 +64,13 @@ export default function Lesson() {
         </>
       )}
 
+      {justDone && <Notice kind="success">🎉 Урок пройден!{next ? ' Следующий урок открыт.' : ' Вы прошли весь курс!'}</Notice>}
+      {error && <Notice kind="error">{error}</Notice>}
       <div className="actions">
-        <button className={`btn ${done ? '' : 'primary'}`} onClick={() => toggleLesson(lesson.id, !done)}>
-          {done ? '✓ Урок пройден (отменить)' : 'Урок пройден'}
-        </button>
+        {!done && <button className="btn primary" onClick={finish} disabled={busy}>{busy ? 'Сохраняем…' : 'Урок пройден'}</button>}
+        {done && <span className="badge ok">✓ Урок пройден</span>}
         {done && next && <Link className="btn primary" to={`/learn/${next.id}`}>Следующий урок →</Link>}
+        {done && !next && <Link className="btn primary" to="/songs">Перейти к песням →</Link>}
       </div>
     </>
   );

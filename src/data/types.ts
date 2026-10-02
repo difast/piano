@@ -8,8 +8,11 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 
 export interface Lesson {
   id: string;
+  order: number;
+  /** id уроков, которые нужно пройти до этого */
+  prerequisites: string[];
   title: string;
-  summary: string;
+  description: string;
   /** Ссылка на видео (mp4 или YouTube embed). Пусто — показывается заглушка. */
   videoUrl?: string;
   durationMin: number;
@@ -27,7 +30,11 @@ export interface Song {
   coverUrl?: string;
   description: string;
   videoUrl?: string;
-  /** Простая нотная запись для обучения: ноты через пробел */
+  /** Ноты для подсветки на пианино (пусто, пока материалов нет) */
   notes: string[];
-  steps: string[];
+  learningSteps: string[];
+  /** demo — тестовые данные, published — настоящие материалы */
+  status: 'demo' | 'published';
+  /** дополнительные слова для поиска (например, русское написание) */
+  keywords?: string[];
 }

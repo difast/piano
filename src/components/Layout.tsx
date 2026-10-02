@@ -12,26 +12,29 @@ const NAV = [
 ];
 
 export function Layout() {
-  const { profile } = useApp();
+  const { user, status } = useApp();
   return (
     <>
       <header className="topbar">
         <div className="container topbar-inner">
           <Link to="/" className="logo">🎹 <span>Пианино</span></Link>
-          <nav className="nav-desktop">
+          <nav className="nav-desktop" aria-label="Основная навигация">
             {NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
           </nav>
           <div className="topbar-right">
-            {profile && <TimeBadge />}
-            {!profile && <Link to="/profile" className="btn small">Войти</Link>}
+            {user && <TimeBadge />}
+            {!user && status === 'ready' && <Link to="/login" className="btn small">Войти</Link>}
           </div>
         </div>
       </header>
       <main className="container"><Outlet /></main>
-      <nav className="nav-mobile">
+      <nav className="nav-mobile" aria-label="Мобильная навигация">
         {NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
       </nav>
-      <footer className="footer container muted small">© Пианино с нуля · Бесплатные занятия до 15 минут в день</footer>
+      <footer className="footer container muted small">
+        <p>© Пианино с нуля · Бесплатные занятия до 15 минут в день</p>
+        <p><Link to="/privacy">Политика конфиденциальности</Link> · <Link to="/terms">Пользовательское соглашение</Link></p>
+      </footer>
     </>
   );
 }

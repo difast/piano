@@ -12,8 +12,8 @@ export const LEVELS = [
 
 export const LESSONS: Lesson[] = [
   {
-    id: 'l1', title: 'Знакомство с клавиатурой', durationMin: 5,
-    summary: 'Белые и чёрные клавиши, группы по две и по три.',
+    id: 'l1', order: 1, prerequisites: [], title: 'Знакомство с клавиатурой', durationMin: 5,
+    description: 'Белые и чёрные клавиши, группы по две и по три.',
     instructions: [
       'Сядьте ровно, предплечья параллельно полу.',
       'Найдите группы из двух и трёх чёрных клавиш.',
@@ -22,8 +22,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Найди все «до»', description: 'Сыграйте «до» в разных октавах слева направо.', notes: ['C3', 'C4', 'C5'] },
   },
   {
-    id: 'l2', title: 'Названия нот', durationMin: 6,
-    summary: 'До, ре, ми, фа, соль, ля, си — и их латинские обозначения.',
+    id: 'l2', order: 2, prerequisites: ['l1'], title: 'Названия нот', durationMin: 6,
+    description: 'До, ре, ми, фа, соль, ля, си — и их латинские обозначения.',
     instructions: [
       'Семь нот повторяются по кругу: C D E F G A B.',
       'После «си» снова идёт «до» — это новая октава.',
@@ -32,8 +32,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Гамма до мажор', description: 'Сыграйте восемь белых клавиш вверх от C4 до C5.', notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'] },
   },
   {
-    id: 'l3', title: 'Посадка и положение рук', durationMin: 6,
-    summary: 'Как держать руки, чтобы играть свободно и без усталости.',
+    id: 'l3', order: 3, prerequisites: ['l2'], title: 'Посадка и положение рук', durationMin: 6,
+    description: 'Как держать руки, чтобы играть свободно и без усталости.',
     instructions: [
       'Пальцы слегка округлены, как будто держите мячик.',
       'Нумерация пальцев: большой — 1, мизинец — 5.',
@@ -42,8 +42,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Пять пальцев', description: 'Правая рука: C D E F G на пальцы 1-2-3-4-5.', notes: ['C4', 'D4', 'E4', 'F4', 'G4'] },
   },
   {
-    id: 'l4', title: 'Первая мелодия', durationMin: 7,
-    summary: 'Сыграем простую мелодию из трёх нот.',
+    id: 'l4', order: 4, prerequisites: ['l3'], title: 'Первая мелодия', durationMin: 7,
+    description: 'Сыграем простую мелодию из трёх нот.',
     instructions: [
       'Мелодия — последовательность нот во времени.',
       'Играйте медленно и ровно, не торопитесь.',
@@ -52,8 +52,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Ми-ре-до', description: 'Сыграйте E D C, затем повторите.', notes: ['E4', 'D4', 'C4', 'E4', 'D4', 'C4'] },
   },
   {
-    id: 'l5', title: 'Длительности и ритм', durationMin: 7,
-    summary: 'Целые, половинные и четвертные ноты. Считаем вместе.',
+    id: 'l5', order: 5, prerequisites: ['l4'], title: 'Длительности и ритм', durationMin: 7,
+    description: 'Целые, половинные и четвертные ноты. Считаем вместе.',
     instructions: [
       'Четвертная нота — один счёт, половинная — два, целая — четыре.',
       'Считайте вслух: раз-два-три-четыре.',
@@ -62,8 +62,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Ритмичная гамма', description: 'Сыграйте C D E F G, держа каждую ноту по одному счёту.', notes: ['C4', 'D4', 'E4', 'F4', 'G4'] },
   },
   {
-    id: 'l6', title: 'Левая рука и басы', durationMin: 8,
-    summary: 'Подключаем левую руку: низкие ноты и основа гармонии.',
+    id: 'l6', order: 6, prerequisites: ['l5'], title: 'Левая рука и басы', durationMin: 8,
+    description: 'Подключаем левую руку: низкие ноты и основа гармонии.',
     instructions: [
       'Левая рука играет в нижней части клавиатуры.',
       'Пальцы нумеруются так же, но зеркально.',
@@ -72,8 +72,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Бас и мелодия', description: 'Левая: C3. Правая: E4 D4 C4.', notes: ['C3', 'E4', 'D4', 'C4'] },
   },
   {
-    id: 'l7', title: 'Чёрные клавиши и диезы', durationMin: 7,
-    summary: 'Диезы и бемоли: как найти и сыграть чёрные клавиши.',
+    id: 'l7', order: 7, prerequisites: ['l6'], title: 'Чёрные клавиши и диезы', durationMin: 7,
+    description: 'Диезы и бемоли: как найти и сыграть чёрные клавиши.',
     instructions: [
       'Диез (#) — на полтона выше, бемоль (♭) — ниже.',
       'Чёрная клавиша справа от C называется C# (до-диез).',
@@ -82,8 +82,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Хроматика', description: 'Сыграйте подряд C C# D D# E.', notes: ['C4', 'C#4', 'D4', 'D#4', 'E4'] },
   },
   {
-    id: 'l8', title: 'Аккорд до мажор', durationMin: 8,
-    summary: 'Три ноты вместе — ваш первый аккорд.',
+    id: 'l8', order: 8, prerequisites: ['l7'], title: 'Аккорд до мажор', durationMin: 8,
+    description: 'Три ноты вместе — ваш первый аккорд.',
     instructions: [
       'Аккорд до мажор: C, E, G.',
       'Пальцы 1-3-5 в правой руке.',
@@ -92,8 +92,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Аккорд C', description: 'Сыграйте C4 + E4 + G4 одновременно, затем по очереди.', notes: ['C4', 'E4', 'G4'] },
   },
   {
-    id: 'l9', title: 'Аккорды: соль и фа', durationMin: 9,
-    summary: 'Три аккорда, на которых написаны сотни песен.',
+    id: 'l9', order: 9, prerequisites: ['l8'], title: 'Аккорды: соль и фа', durationMin: 9,
+    description: 'Три аккорда, на которых написаны сотни песен.',
     instructions: [
       'G мажор: G B D. F мажор: F A C.',
       'Учитесь переходить: C → F → G → C.',
@@ -102,8 +102,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Последовательность C-F-G-C', description: 'Сыграйте четыре аккорда подряд, по два счёта на каждый.', notes: ['C4', 'E4', 'G4', 'F4', 'A4', 'G4', 'B4', 'D5'] },
   },
   {
-    id: 'l10', title: 'Две руки вместе', durationMin: 10,
-    summary: 'Левая — аккорды, правая — мелодия.',
+    id: 'l10', order: 10, prerequisites: ['l9'], title: 'Две руки вместе', durationMin: 10,
+    description: 'Левая — аккорды, правая — мелодия.',
     instructions: [
       'Сначала выучите каждую руку отдельно.',
       'Играйте очень медленно, скорость придёт позже.',
@@ -112,8 +112,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Простой аккомпанемент', description: 'Левая: C3 на каждый счёт. Правая: E4 D4 C4 D4.', notes: ['C3', 'E4', 'D4', 'C4', 'D4'] },
   },
   {
-    id: 'l11', title: 'Динамика и педаль', durationMin: 8,
-    summary: 'Тихо и громко, плавно и отрывисто.',
+    id: 'l11', order: 11, prerequisites: ['l10'], title: 'Динамика и педаль', durationMin: 8,
+    description: 'Тихо и громко, плавно и отрывисто.',
     instructions: [
       'p — тихо, f — громко.',
       'Правая педаль продлевает звук.',
@@ -122,8 +122,8 @@ export const LESSONS: Lesson[] = [
     exercise: { title: 'Играем выразительно', description: 'Сыграйте гамму до мажор: вверх — crescendo, вниз — diminuendo.', notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'F4', 'E4', 'D4', 'C4'] },
   },
   {
-    id: 'l12', title: 'Первая песня целиком', durationMin: 12,
-    summary: 'Собираем всё вместе и играем настоящую песню.',
+    id: 'l12', order: 12, prerequisites: ['l11'], title: 'Первая песня целиком', durationMin: 12,
+    description: 'Собираем всё вместе и играем настоящую песню.',
     instructions: [
       'Выберите песню из раздела «Песни».',
       'Разбейте её на короткие фразы.',

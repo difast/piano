@@ -4,28 +4,30 @@ import { useApp } from '../context/AppContext';
 const IDLE_MS = 60_000; // без действий дольше минуты — время не идёт
 
 /**
- * Считает активное время занятий: пока компонент смонтирован, вкладка видна
- * и пользователь что-то делал за последнюю минуту. Остановка при достижении лимита (Free).
+ * Считает активное время: компонент на экране + вкладка видна + за последнюю минуту
+ * были действия пользователя. Секунды отправляются на сервер, он ведёт лимит.
  */
 export function usePracticeTimer(enabled = true) {
-  const { addPracticeSeconds, limitReached } = useApp();
+  const { recordActiveSecond, limitReached, user } = useApp();
   const lastActivity = useRef(Date.now());
+  const on = enabled && !!user;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!on) return;
+    lastActivity.current = Date.now();
     const bump = () => { lastActivity.current = Date.now(); };
     const events = ['pointerdown', 'keydown', 'scroll', 'touchstart', 'mousemove'] as const;
     events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, bump));
-  }, [enabled]);
+  }, [on]);
 
   useEffect(() => {
-    if (!enabled || limitReached) return;
+    if (!on || limitReached) return;
     const id = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       if (Date.now() - lastActivity.current > IDLE_MS) return;
-      addPracticeSeconds(1);
+      recordActiveSecond();
     }, 1000);
     return () => clearInterval(id);
-  }, [enabled, limitReached, addPracticeSeconds]);
+  }, [on, limitReached, recordActiveSecond]);
 }
