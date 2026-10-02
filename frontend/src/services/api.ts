@@ -45,7 +45,11 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.', 0);
+    // Чаще всего это блокировка CORS: подсказываем администратору, какое значение нужно на бэкенде
+    const hint = API_URL && API_URL !== window.location.origin
+      ? ` Для администратора: на бэкенде переменная CORS_ORIGIN должна быть ровно ${window.location.origin} (адрес бэкенда: ${API_URL}).`
+      : '';
+    throw new ApiError(`Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.${hint}`, 0);
   }
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(data?.error ?? 'Что-то пошло не так. Попробуйте ещё раз.', res.status);
