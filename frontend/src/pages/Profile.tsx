@@ -40,6 +40,14 @@ export default function Profile() {
           {msg && <Notice>{msg}</Notice>}
         </div>
       )}
+      <div className="card install-tip">
+        <h3>Установите как приложение</h3>
+        <p className="muted" style={{ margin: '0 0 8px' }}>Значок на экране телефона — и сайт открывается как приложение, без адресной строки.</p>
+        <ul className="plan-list" style={{ margin: 0 }}>
+          <li><b>iPhone (Safari):</b> кнопка «Поделиться» → «На экран “Домой”».</li>
+          <li><b>Android (Chrome):</b> меню ⋮ → «Установить приложение» или «Добавить на главный экран».</li>
+        </ul>
+      </div>
       {devTools && (
         <div className="card">
           <p className="muted small">Тестовый режим (оплаты пока нет)</p>

@@ -349,3 +349,14 @@ button, a, summary, label, select { touch-action: manipulation; }
 }
 .logo { white-space: nowrap; flex: none; }
 @media (max-width: 1000px) { .topbar-inner { gap: 12px; } .nav-desktop a { padding: 8px 8px; font-size: .9rem; } }
+
+/* ===== установка на экран «Домой» ===== */
+.install-tip { display: none; }
+@media (pointer: coarse) { .install-tip { display: block; } }
+@media (display-mode: standalone) {
+  .install-tip { display: none; }
+  html, body { overscroll-behavior-y: none; }
+  body { -webkit-user-select: none; user-select: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  .footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+}

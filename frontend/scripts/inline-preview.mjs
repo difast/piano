@@ -9,8 +9,8 @@ const icon = 'data:image/svg+xml,' + encodeURIComponent(readFileSync('public/fav
 html = html
   .replace(/<link rel="stylesheet"[^>]*>/, '')
   .replace(/<script type="module"[^>]*><\/script>/, '')
-  .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="${icon}" />`)
-  .replace(/<link rel="apple-touch-icon"[^>]*>/, '')
+  .replace(/\s*<link rel="(?:icon|shortcut icon|apple-touch-icon|manifest)"[^>]*>/g, '')
+  .replace('</head>', () => `<link rel="icon" href="${icon}" />\n</head>`)
   .replace(/<script src="\/config\.js"><\/script>\s*/, '')
   .replace(/.*__SITE_URL__.*\n/g, '')
   .replace('</head>', () => `<style>${css}</style>\n</head>`)
