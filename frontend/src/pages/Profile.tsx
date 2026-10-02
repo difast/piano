@@ -22,7 +22,7 @@ export default function Profile() {
   const toggleDev = async () => { try { await setDevPro(!isPro); } catch (e) { setError((e as Error).message); } };
 
   return (
-    <>
+    <div className="page-narrow">
       <h1>Профиль</h1>
       <div className="card">
         <p><b>{user.name || 'Без имени'}</b><br /><span className="muted">{user.email}</span></p>
@@ -47,6 +47,6 @@ export default function Profile() {
           {error && <Notice kind="error">{error}</Notice>}
         </div>
       )}
-    </>
+    </div>
   );
 }

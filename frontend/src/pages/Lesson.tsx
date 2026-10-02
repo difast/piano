@@ -41,7 +41,7 @@ export default function Lesson() {
   };
 
   return (
-    <>
+    <div className="page-narrow">
       {redirectNotice && <Notice>{redirectNotice}</Notice>}
       <Link to="/learn" className="muted">← Все уроки</Link>
       <p className="muted small" style={{ marginTop: 16 }}>Урок {lesson.order} из {LESSONS.length}</p>
@@ -72,6 +72,6 @@ export default function Lesson() {
         {done && next && <Link className="btn primary" to={`/learn/${next.id}`}>Следующий урок →</Link>}
         {done && !next && <Link className="btn primary" to="/songs">Перейти к песням →</Link>}
       </div>
-    </>
+    </div>
   );
 }

@@ -11,7 +11,7 @@ export default function Learn() {
   const notice = (useLocation().state as { notice?: string } | null)?.notice;
   const pct = Math.round((completedLessons.length / LESSONS.length) * 100);
   return (
-    <>
+    <div className="page-narrow">
       <h1>Обучение</h1>
       {notice && <Notice kind="info">{notice}</Notice>}
       <div className="card course-head">
@@ -46,6 +46,6 @@ export default function Learn() {
           );
         })}
       </ol>
-    </>
+    </div>
   );
 }

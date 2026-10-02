@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { TimeBadge } from './LimitNotice';
 import { LegalLink } from './LegalLink';
@@ -15,6 +16,7 @@ const NAV = [
 
 export function Layout() {
   const { user, status } = useApp();
+  const { pathname } = useLocation();
   return (
     <>
       <header className="topbar">
@@ -29,7 +31,7 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main className="container"><Outlet /></main>
+      <main className="container"><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></main>
       <nav className="nav-mobile" aria-label="Мобильная навигация">
         {NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
       </nav>

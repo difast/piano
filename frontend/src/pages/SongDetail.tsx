@@ -33,7 +33,7 @@ export default function SongDetail() {
   };
 
   return (
-    <>
+    <div className="page-narrow">
       <Link to="/songs" className="muted">← Все песни</Link>
       <div className="song-head">
         <Cover cover={song.cover} coverUrl={song.coverUrl} title={song.title} />
@@ -66,6 +66,6 @@ export default function SongDetail() {
           {learned ? '✓ Песня выучена (отменить)' : 'Отметить как выученную'}
         </button>
       </div>
-    </>
+    </div>
   );
 }
