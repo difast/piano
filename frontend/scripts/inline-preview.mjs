@@ -11,6 +11,7 @@ html = html
   .replace(/<script type="module"[^>]*><\/script>/, '')
   .replace(/<link rel="icon"[^>]*>/, `<link rel="icon" href="${icon}" />`)
   .replace(/<link rel="apple-touch-icon"[^>]*>/, '')
+  .replace(/<script src="\/config\.js"><\/script>\s*/, '')
   .replace(/.*__SITE_URL__.*\n/g, '')
   .replace('</head>', () => `<style>${css}</style>\n</head>`)
   .replace('</body>', () => `<script type="module">${js}</script>\n</body>`);

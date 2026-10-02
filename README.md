@@ -18,9 +18,8 @@ cd frontend && npm install && npm run dev     # сайт на :5173 (запро�
 ## Frontend (статическое приложение)
 - Директория проекта: `frontend`
 - Установка: `npm ci --include=dev` · Сборка: `npm run build` · Публикуемая папка: `dist`
-- Переменные **на этапе сборки**:
-  - `VITE_API_URL` — адрес бэкенда, например `https://api.example.ru` (без слеша)
-  - `VITE_SITE_URL` — адрес сайта, например `https://app.example.ru` (для Open Graph)
+- Адрес бэкенда задаётся в файле **`frontend/public/config.js`** (`apiUrl: 'https://api.example.ru'`, без слеша) — это работает без переменных сборки. Запасной вариант: переменная сборки `VITE_API_URL`.
+- Переменная сборки `VITE_SITE_URL` — адрес сайта для Open Graph (необязательна).
 - Нужен SPA-fallback: любой путь должен отдавать `index.html`.
 - `npm run build:preview` — автономный демо-файл `piano-preview.html` (без сервера).
 

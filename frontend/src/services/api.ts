@@ -31,8 +31,10 @@ export class ApiError extends Error {
   constructor(message: string, status: number) { super(message); this.status = status; }
 }
 
-/** Адрес бэкенда при раздельном деплое (VITE_API_URL=https://api.example.ru при сборке). Пусто — тот же домен. */
-const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '');
+/** Адрес бэкенда при раздельном деплое. Пусто — тот же домен. */
+declare global { interface Window { __APP_CONFIG__?: { apiUrl?: string } } }
+/** Приоритет: public/config.js (задаётся без пересборки) → переменная сборки VITE_API_URL → тот же домен. */
+const API_URL = (window.__APP_CONFIG__?.apiUrl || (import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
 
 async function request<T>(method: string, path: string, body?: unknown, keepalive = false): Promise<T> {
   let res: Response;
