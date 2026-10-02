@@ -11,12 +11,20 @@ app.disable('x-powered-by');
 if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
 
 // Раздельный деплой: фронт на другом домене. CORS_ORIGIN — список разрешённых адресов фронта через запятую.
-const CORS_ORIGINS = (process.env.CORS_ORIGIN ?? '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
+// Терпимо к опечаткам: без схемы добавляем https://, убираем слеш и путь, приводим к нижнему регистру.
+function normalizeOrigin(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  try { return new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`).origin.toLowerCase(); } catch { return null; }
+}
+const CORS_ORIGINS = (process.env.CORS_ORIGIN ?? '').split(',').map(normalizeOrigin).filter((o): o is string => !!o);
+if (CORS_ORIGINS.length) console.log('CORS: разрешённые адреса фронта:', CORS_ORIGINS.join(', '));
+else console.warn('CORS: переменная CORS_ORIGIN не задана — фронт на другом домене работать не сможет');
 // lax — если фронт и бэк на одном сайте (например app.site.ru и api.site.ru); none — если на разных сайтах (нужен HTTPS)
 const SAME_SITE = (['lax', 'strict', 'none'].includes(process.env.COOKIE_SAMESITE ?? '') ? process.env.COOKIE_SAMESITE : 'lax') as 'lax' | 'strict' | 'none';
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && CORS_ORIGINS.includes(origin)) {
+  if (origin && CORS_ORIGINS.includes(origin.toLowerCase())) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
