@@ -43,7 +43,7 @@ export default function PianoPage() {
       <p className="lead">Свободная практика. Играйте мышью, касанием или клавишами компьютера.</p>
       {limitReached && <LimitNotice />}
       <div ref={box}>
-        <Piano from={from} to={to} labels="name" disabled={limitReached} keyboard showNote showKeyboardLabels={width > 700} />
+        <Piano from={from} to={to} labels="name" disabled={limitReached} keyboard showNote glide soundTip showKeyboardLabels={width > 700} />
       </div>
       <div className="actions" style={{ justifyContent: 'center', alignItems: 'center', margin: '8px 0' }}>
         <button className="btn small" onClick={() => setOctave(Math.max(1, oct - 1))} disabled={oct <= 1}>◀ Октава ниже</button>

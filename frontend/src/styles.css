@@ -297,3 +297,55 @@ main.container > * + h1 { margin-top: .6em; }
 .mini-list { margin: 8px 0 0; padding-left: 22px; color: #44403c; font-size: .93rem; } .mini-list li { margin: 3px 0; }
 .score-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 6px 0; }
 @media (max-width: 900px) { .blocks-grid { grid-template-columns: 1fr 1fr; } } @media (max-width: 720px) { .blocks-grid { grid-template-columns: 1fr; } }
+
+/* ===== мобильная адаптация ===== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+button, a, summary, label, select { touch-action: manipulation; }
+.piano, .key, .chips, .seg { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.sound-off { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 10px; padding: 8px 12px; font-size: .85rem; margin: 8px 0 0; }
+.rotate-hint, .sound-tip { display: none; text-align: center; color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
+.demo-card .sound-tip { color: #c7d2fe; }
+@media (pointer: coarse) { .sound-tip { display: block; } }
+@media (max-width: 520px) and (orientation: portrait) { .rotate-hint { display: block; } }
+.topbar { padding-top: env(safe-area-inset-top); }
+.timerbar { top: calc(60px + env(safe-area-inset-top)); }
+
+@media (max-width: 720px) {
+  .container { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  input, select, textarea, .sel select { font-size: 16px; } /* iOS не приближает страницу при фокусе */
+  .btn { min-height: 44px; padding: 10px 16px; } .btn.small { min-height: 40px; padding: 8px 14px; }
+  .seg button { min-height: 40px; padding: 8px 10px; }
+  .tabs button { min-height: 40px; }
+  .stage-nav .btn { flex: 1; } .actions .btn { flex: 1 1 auto; }
+  .opt { padding: 13px 14px; }
+  .lesson-text, .demo, .exercise, .quiz, .rhythm, .metro, .hand, .checklist { padding: 12px; }
+  .lesson-text { padding: 14px; }
+  /* пианино во всю ширину карточки: клавиши максимально крупные */
+  .exercise .piano-wrap, .demo .piano-wrap { margin-left: -6px; margin-right: -6px; }
+  .piano { padding: 4px 3px 3px; border-radius: 10px; height: clamp(150px, 44vw, 190px); }
+  .key.white { padding-bottom: 4px; font-size: .62rem; } .key.black { font-size: .55rem; padding-bottom: 3px; }
+  .chips li { font-size: .8rem; padding-right: 8px; }
+  .stage-title h2 { font-size: 1.15rem; }
+  .lesson-meta { font-size: .8rem; }
+  .goals { font-size: .92rem; }
+  .ex-status { font-size: .9rem; }
+  .ex-controls .btn, .ex-controls .seg { flex: 1 1 auto; } .ex-controls .seg button { flex: 1; }
+  .beat-row { margin-left: 70px; } .r-label { width: 62px; font-size: .75rem; }
+  .metro-ctl { gap: 10px; } .metro-ctl input[type=range] { width: 110px; }
+  .modal { padding: 22px 16px; } .modal .actions .btn { width: 100%; }
+  .card { padding: 16px; }
+  .footer { padding-bottom: 96px; }
+  .nav-mobile { padding-bottom: env(safe-area-inset-bottom); }
+  .toast { font-size: .9rem; }
+}
+@media (max-width: 380px) { .nav-mobile a { font-size: .6rem; } .tb-main { font-size: .82rem; } .tb-time { font-size: 1rem; } .piano { height: clamp(140px, 46vw, 170px); } }
+/* телефон в горизонтальном положении */
+@media (max-height: 520px) and (orientation: landscape) {
+  .topbar-inner { height: 48px; } .timerbar { top: calc(48px + env(safe-area-inset-top)); } .timerbar-inner { min-height: 38px; }
+  .piano { height: clamp(110px, 34vh, 170px); }
+  .modal { max-height: 92vh; overflow: auto; }
+  .toasts { top: 100px; }
+  .rotate-hint { display: none; }
+}
+.logo { white-space: nowrap; flex: none; }
+@media (max-width: 1000px) { .topbar-inner { gap: 12px; } .nav-desktop a { padding: 8px 8px; font-size: .9rem; } }

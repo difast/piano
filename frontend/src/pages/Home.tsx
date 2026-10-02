@@ -65,7 +65,7 @@ export default function Home() {
         <div className="hero-demo" id="demo">
           <div className="demo-card">
             <p className="demo-title">Нажми на клавишу — это уже пианино</p>
-            <Piano from="C4" to="C5" labels="both" showNote />
+            <Piano from="C4" to="C5" labels="both" showNote glide soundTip />
           </div>
         </div>
       </section>

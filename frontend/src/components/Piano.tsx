@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { KEY_MAP, keyLabelFor, keysInRange, noteName, noteRu, RU_NAMES } from '../services/notes';
-import { startNote, stopAll, stopNote } from '../services/audio';
+import { getAudioState, startNote, stopAll, stopNote, subscribeAudio, unlockAudio } from '../services/audio';
 import type { LabelMode } from '../data/types';
 
 interface Props {
@@ -23,6 +23,10 @@ interface Props {
   /** показывать крупное название последней нажатой ноты */
   showNote?: boolean;
   volume?: number;
+  /** слайд пальцем/мышью по клавишам (глиссандо). В упражнениях выключено, чтобы случайные касания не давали ошибок */
+  glide?: boolean;
+  /** подсказка про звук на телефоне (громкость, беззвучный режим) */
+  soundTip?: boolean;
   onDown?: (note: string) => void;
   onUp?: (note: string) => void;
 }
@@ -42,7 +46,7 @@ function labelFor(note: string, mode: LabelMode | undefined, isBlack: boolean): 
 
 export function Piano({
   from = 'C4', to = 'C5', disabled, hint = [], current = [], done = [], playing = [], labels = 'name',
-  keyboard = false, showKeyboardLabels = false, showNote = false, volume = 1, onDown, onUp,
+  keyboard = false, showKeyboardLabels = false, showNote = false, volume = 1, glide = false, soundTip = false, onDown, onUp,
 }: Props) {
   const id = useId();
   const keys = useMemo(() => keysInRange(from, to), [from, to]);
@@ -50,10 +54,15 @@ export function Piano({
   const [pressed, setPressed] = useState<Set<string>>(new Set());
   const [last, setLast] = useState<string | null>(null);
   const physical = useRef(new Set<string>());
+  const root = useRef<HTMLDivElement>(null);
+  const audioState = useSyncExternalStore(subscribeAudio, getAudioState);
+  const [touched, setTouched] = useState(false);
   const volRef = useRef(volume); volRef.current = volume;
 
   const down = useCallback((note: string) => {
     if (disabled) return;
+    unlockAudio();
+    setTouched(true);
     startNote(note, volRef.current);
     setPressed((s) => new Set(s).add(note));
     setLast(note);
@@ -98,6 +107,19 @@ export function Piano({
     };
   }, [keyboard, keys, down, up, id]);
 
+  // Слайд пальцем: браузер «привязывает» касание к начальной клавише уже после pointerdown — отпускаем его
+  // (нативный слушатель надёжнее, чем React-обработчик). Только там, где слайд включён.
+  useEffect(() => {
+    const el = root.current;
+    if (!glide || !el) return;
+    const onCapture = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      try { (e.target as Element).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    };
+    el.addEventListener('gotpointercapture', onCapture);
+    return () => el.removeEventListener('gotpointercapture', onCapture);
+  }, [glide]);
+
   useEffect(() => () => { stopAll(); }, []);
   useEffect(() => { if (disabled) { stopAll(); setPressed(new Set()); } }, [disabled]);
 
@@ -108,7 +130,7 @@ export function Piano({
     onPointerLeave: () => up(note),
     onPointerCancel: () => up(note),
     // зажатая мышь скользит на соседнюю клавишу — играем её (глиссандо)
-    onPointerEnter: (e: React.PointerEvent) => { if (e.buttons === 1 && e.pointerType === 'mouse') down(note); },
+    onPointerEnter: (e: React.PointerEvent) => { if (e.buttons === 1 && (e.pointerType === 'mouse' || (glide && e.pointerType === 'touch'))) down(note); },
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   });
 
@@ -135,7 +157,7 @@ export function Piano({
           {last ? (<><strong>{noteName(last).replace('#', '♯')}</strong><span>{noteRu(last)}</span></>) : <span className="muted">Нажмите на клавишу</span>}
         </div>
       )}
-      <div className={`piano${disabled ? ' disabled' : ''}`} style={{ ['--whites' as string]: whites.length }} role="application" aria-label="Пианино">
+      <div ref={root} className={`piano${disabled ? ' disabled' : ''}`} style={{ ['--whites' as string]: whites.length }} role="application" aria-label="Пианино">
         {whites.map((k) => (
           <button key={k.note} className={cls(k.note, 'key white')} style={{ width: `${w}%` }} aria-label={k.note} {...keyProps(k.note)}>
             {renderLabel(k.note, false)}
@@ -152,6 +174,11 @@ export function Piano({
           );
         })}
       </div>
+      {touched && audioState !== 'running' && audioState !== 'none' && (
+        <p className="sound-off" role="status">🔇 Звук ещё не включился — коснитесь клавиши ещё раз. На iPhone проверьте, что выключен беззвучный режим и включена громкость.</p>
+      )}
+      {whites.length >= 12 && <p className="rotate-hint">Совет: поверните телефон горизонтально — клавиши станут крупнее.</p>}
+      {soundTip && <p className="sound-tip">Нет звука? Включите громкость и выключите беззвучный режим телефона.</p>}
     </div>
   );
 }
