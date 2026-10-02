@@ -1,5 +1,5 @@
 import { db } from './db.ts';
-import { FREE_DAILY_LIMIT_SEC } from '../src/data/config.ts';
+import { FREE_DAILY_LIMIT_SEC } from './content.ts';
 
 export const LIMIT_SECONDS = Number(process.env.FREE_LIMIT_SECONDS) || FREE_DAILY_LIMIT_SEC;
 const TZ = process.env.APP_TZ ?? 'Europe/Moscow';

@@ -1,0 +1,24 @@
+{
+  "name": "piano-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "NODE_ENV=production tsx src/index.ts",
+    "check:sync": "tsx scripts/check-content-sync.ts"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "typescript": "^5.5.4"
+  }
+}

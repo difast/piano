@@ -1,50 +1,54 @@
 # Пианино с нуля — MVP
 
-Веб-платформа для самостоятельного обучения игре на пианино.
-Стек: Vite + React + TypeScript + react-router (фронтенд) и Node + Express + SQLite (минимальный бэкенд).
+Платформа для самостоятельного обучения игре на пианино. Два независимых приложения в одном репозитории:
 
-## Запуск
+| Папка | Что это | Стек |
+|---|---|---|
+| `frontend/` | сайт (статика) | Vite + React + TypeScript + react-router |
+| `backend/` | API: аккаунты, прогресс, серверный лимит Free | Node.js 22.13+, Express, SQLite (`node:sqlite`) |
+
+Деплоятся раздельно, у каждого свой `package.json`.
+
+## Локальный запуск
 ```
-npm install
-npm run dev      # разработка: API на :3001 + Vite на :5173 (прокси /api)
-npm run build    # проверка типов (клиент и сервер) + production-сборка в dist/
-npm start        # production: Express отдаёт dist/ с SPA-fallback и API (порт 3001)
+cd backend  && npm install && npm run dev     # API на :3001
+cd frontend && npm install && npm run dev     # сайт на :5173 (запросы /api проксируются на :3001)
 ```
 
-Переменные окружения (все необязательны):
+## Frontend (статическое приложение)
+- Директория проекта: `frontend`
+- Установка: `npm ci --include=dev` · Сборка: `npm run build` · Публикуемая папка: `dist`
+- Переменные **на этапе сборки**:
+  - `VITE_API_URL` — адрес бэкенда, например `https://api.example.ru` (без слеша)
+  - `VITE_SITE_URL` — адрес сайта, например `https://app.example.ru` (для Open Graph)
+- Нужен SPA-fallback: любой путь должен отдавать `index.html`.
+- `npm run build:preview` — автономный демо-файл `piano-preview.html` (без сервера).
+
+## Backend (Node.js / Express)
+- Директория проекта: `backend`
+- Установка: `npm ci` · Сборка: `npm run build` (проверка типов) · Запуск: `npm start` · Health-check: `/api/me`
+- Переменные окружения:
+
 | Переменная | Назначение |
 |---|---|
+| `CORS_ORIGIN` | адрес(а) фронта через запятую, например `https://app.example.ru` |
+| `TRUST_PROXY=1` | если сервер за прокси с HTTPS |
+| `DB_FILE` | путь к SQLite на постоянном диске (по умолчанию `data/piano.db`) |
+| `COOKIE_SAMESITE` | `lax` (по умолчанию) или `none` — см. ниже |
+| `APP_TZ` | часовой пояс суток лимита (по умолчанию `Europe/Moscow`) |
 | `PORT` | порт (по умолчанию 3001) |
-| `DB_FILE` | путь к SQLite-файлу (по умолчанию `data/piano.db`) |
-| `SITE_URL` | публичный URL для Open Graph (иначе берётся из запроса) |
-| `APP_TZ` | часовой пояс для суток лимита (по умолчанию `Europe/Moscow`) |
-| `TRUST_PROXY=1` | если сервер за reverse proxy с HTTPS (для secure-cookie) |
-| `ALLOW_DEV_PRO=1` | разрешить тестовое включение Pro в продакшене (по умолчанию выключено) |
-| `CORS_ORIGIN` | раздельный деплой: адрес(а) фронта через запятую, например `https://app.example.ru` |
-| `COOKIE_SAMESITE` | `lax` (по умолчанию) или `none` — см. раздел про раздельный деплой |
+| `ALLOW_DEV_PRO=1` | разрешить тестовое включение Pro (в продакшене не включать) |
 | `FREE_LIMIT_SECONDS` | переопределить лимит Free (для тестов) |
 
-Нужен Node.js 22.13+ (используется встроенный `node:sqlite`).
+**Cookie входа.** Если фронт и бэк — поддомены одного сайта (`app.example.ru` и `api.example.ru`), оставьте `lax`. Если это разные сайты, нужен `COOKIE_SAMESITE=none` и HTTPS на обоих, но Safari и часть браузеров блокируют такие сторонние cookie — используйте поддомены одного домена.
 
-## Структура
-- `src/data/course.ts`, `songs.ts` — контент (демо-данные). Уроки: `order`, `prerequisites`, `videoUrl`; песни: `status`, `coverUrl`, `notes`, `learningSteps`.
-- `server/` — регистрация/вход (scrypt + httpOnly-сессия), прогресс, серверный лимит Free, события аналитики.
-- `src/services/api.ts` — клиент API; `analytics.ts` — события воронки (подключаемые провайдеры); `billing.ts` — заглушка `PaymentProvider` (оплаты нет).
-- `src/context/AppContext.tsx` — состояние пользователя и прогресса; `hooks/usePracticeTimer.ts` — активное время.
-- `src/components/Piano.tsx`, `services/audio.ts` — пианино (WebAudio).
+## Общий контент
+Бэкенду нужны id уроков, цепочки `prerequisites`, id песен, лимит и версия документов — они лежат в `backend/src/content.ts`. При изменении уроков, песен, лимита или `LEGAL_VERSION` во фронтенде запустите `cd backend && npm run check:sync` (нужен полный чекаут репозитория): он сообщит о рассинхроне.
 
 ## Лимит Free
 Клиент отправляет секунды активности, сервер ограничивает их реально прошедшим временем между запросами аккаунта и считает сутки по `APP_TZ`. Очистка браузера, повторный вход и другое устройство лимит не сбрасывают.
 
-## Просмотр событий воронки
-`sqlite3 data/piano.db "select name, count(*) from events group by name"`
+## События воронки
+`sqlite3 <DB_FILE> "select name, count(*) from events group by name"`
 
-## Раздельный деплой (фронт и бэк на разных доменах)
-**Фронт** — статическое приложение (не Express):
-- сборка: `npm ci --include=dev && npm run build`, публикуется папка `dist`;
-- переменные **на этапе сборки**: `VITE_API_URL=https://api.example.ru` (адрес бэкенда, без слеша) и `VITE_SITE_URL=https://app.example.ru` (для Open Graph);
-- нужен SPA-fallback: любой путь должен отдавать `index.html`.
-
-**Бэк** — Node.js (Express), запуск `npm start`, health-check `/api/me`:
-- `CORS_ORIGIN=https://app.example.ru` (адрес фронта), `TRUST_PROXY=1`, `DB_FILE` на постоянном диске.
-- Cookie входа: если домены — поддомены одного сайта (`app.example.ru` и `api.example.ru`), оставьте `COOKIE_SAMESITE=lax`. Если это разные сайты, нужен `COOKIE_SAMESITE=none` и HTTPS на обоих, но Safari и часть браузеров блокируют такие сторонние cookie — лучше использовать поддомены одного домена.
+Юридические реквизиты и версия документов: `frontend/src/data/legal.ts`.

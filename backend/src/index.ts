@@ -1,12 +1,8 @@
 import express, { type Request, type Response } from 'express';
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { db } from './db.ts';
 import { COOKIE, createSession, destroySession, hashPassword, loadUser, rateLimit, readCookie, requireUser, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
-import { LESSONS } from '../src/data/course.ts';
-import { SONGS } from '../src/data/songs.ts';
-import { LEGAL_VERSION } from '../src/data/legal.ts';
+import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -100,7 +96,7 @@ api.post('/lessons/:id/complete', requireUser, (req, res) => {
 
 api.put('/songs/:id/learned', requireUser, (req, res) => {
   const songId = String(req.params.id);
-  if (!SONGS.some((s) => s.id === songId)) { res.status(404).json({ error: 'Песня не найдена' }); return; }
+  if (!SONG_IDS.includes(songId)) { res.status(404).json({ error: 'Песня не найдена' }); return; }
   if (req.body?.learned) db.prepare('INSERT OR IGNORE INTO learned_songs (user_id, song_id) VALUES (?, ?)').run(req.user!.id, songId);
   else db.prepare('DELETE FROM learned_songs WHERE user_id = ? AND song_id = ?').run(req.user!.id, songId);
   res.json(snapshot(req));
@@ -132,17 +128,8 @@ api.post('/events', (req, res) => {
 api.use((_req, res) => { res.status(404).json({ error: 'Not found' }); });
 app.use('/api', api);
 
-// Статика и SPA fallback (в продакшене)
-const dist = resolve('dist');
-if (existsSync(join(dist, 'index.html'))) {
-  const html = readFileSync(join(dist, 'index.html'), 'utf8');
-  app.use(express.static(dist, { index: false, maxAge: '1h' }));
-  app.use((req, res, next) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') { next(); return; }
-    const origin = process.env.SITE_URL ?? `${req.protocol}://${req.get('host')}`;
-    res.type('html').send(html.replaceAll('__SITE_URL__', origin.replace(/\/$/, '')));
-  });
-}
+// Корень отвечает простым статусом (удобно для проверки состояния и чтобы не видеть 404 при открытии адреса бэка)
+app.get('/', (_req, res) => { res.json({ status: 'ok', service: 'piano-backend' }); });
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: unknown) => {

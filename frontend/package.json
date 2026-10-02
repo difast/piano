@@ -1,28 +1,23 @@
 {
-  "name": "piano-learn",
+  "name": "piano-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n api,web \"tsx watch server/index.ts\" \"vite\"",
-    "build": "tsc --noEmit && tsc -p tsconfig.server.json && vite build",
-    "start": "NODE_ENV=production tsx server/index.ts",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "build:preview": "vite build -c vite.preview.config.ts && node scripts/inline-preview.mjs"
   },
   "dependencies": {
-    "express": "^5.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0",
-    "tsx": "^4.23.15"
+    "react-router-dom": "^6.26.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.4",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
-    "concurrently": "^10.0.5",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"
   }

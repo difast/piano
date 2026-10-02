@@ -4,5 +4,5 @@
     "strict": true, "noEmit": true, "skipLibCheck": true, "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["server", "src/data"]
+  "include": ["src", "scripts"]
 }
