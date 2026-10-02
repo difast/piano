@@ -10,8 +10,14 @@ interface U { id: number; email: string; name: string; password: string; isPro: 
 interface DB { users: U[]; session: number | null }
 
 const KEY = 'piano:preview-db';
-const load = (): DB => { try { return JSON.parse(localStorage.getItem(KEY) || '') as DB; } catch { return { users: [], session: null }; } };
-const save = (d: DB) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* ignore */ } };
+// localStorage может быть заблокирован (изолированный просмотрщик) — тогда живём в памяти страницы
+let mem: DB | null = null;
+const load = (): DB => {
+  if (mem) return mem;
+  try { mem = JSON.parse(localStorage.getItem(KEY) || '') as DB; } catch { mem = { users: [], session: null }; }
+  return mem;
+};
+const save = (d: DB) => { mem = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* ignore */ } };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(new Date());
 const json = (status: number, body: unknown) =>
   new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, HashRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PREVIEW } from './env';
 import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
@@ -21,7 +21,12 @@ function ScrollToTop() {
   return null;
 }
 
-const Router = PREVIEW ? HashRouter : BrowserRouter;
+// Демо работает и в изолированных окнах (about:srcdoc), где History/URL API недоступны, поэтому MemoryRouter.
+// Начальную страницу берём из #hash, чтобы ссылки на документы открывались в новой вкладке.
+const initialPath = PREVIEW ? (window.location.hash.slice(1) || '/') : '/';
+const Router = PREVIEW
+  ? ({ children }: { children: React.ReactNode }) => <MemoryRouter initialEntries={[initialPath]}>{children}</MemoryRouter>
+  : BrowserRouter;
 const guard = (el: JSX.Element) => <RequireAuth>{el}</RequireAuth>;
 
 export default function App() {
