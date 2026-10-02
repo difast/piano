@@ -12,7 +12,7 @@ import PianoPage from './pages/PianoPage';
 import ProgressPage from './pages/ProgressPage';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
-import { Privacy, Terms } from './pages/Legal';
+import { Consent, Privacy, Terms } from './pages/Legal';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -41,6 +41,7 @@ export default function App() {
             <Route path="profile" element={guard(<Profile />)} />
             <Route path="privacy" element={<Privacy />} />
             <Route path="terms" element={<Terms />} />
+            <Route path="consent" element={<Consent />} />
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>

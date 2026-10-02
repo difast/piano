@@ -13,7 +13,7 @@ interface AppState {
   user: User | null;
   progress: ProgressState;
   devTools: boolean;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, consent: boolean) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   completeLesson: (id: string) => Promise<void>;
@@ -96,7 +96,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppState>(() => ({
     status, loadError, reload: load, user, progress, devTools,
-    register: async (email, password, name) => { apply(await api.register(email, password, name)); track('signup'); },
+    register: async (email, password, name, consent) => { apply(await api.register(email, password, name, consent)); track('signup'); },
     login: async (email, password) => { apply(await api.login(email, password)); track('login'); },
     logout: async () => { flush(); await api.logout().catch(() => undefined); setUser(null); setProgress(EMPTY); setDevTools(false); },
     completeLesson: async (id) => { apply(await api.completeLesson(id)); track('lesson_complete', { lessonId: id }); },

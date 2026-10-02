@@ -36,7 +36,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
 
 export const api = {
   me: () => request<Snapshot | { user: null }>('GET', '/me'),
-  register: (email: string, password: string, name: string) => request<Snapshot>('POST', '/auth/register', { email, password, name }),
+  register: (email: string, password: string, name: string, consent: boolean) => request<Snapshot>('POST', '/auth/register', { email, password, name, consent }),
   login: (email: string, password: string) => request<Snapshot>('POST', '/auth/login', { email, password }),
   logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
   completeLesson: (id: string) => request<Snapshot>('POST', `/lessons/${id}/complete`, {}),

@@ -1,6 +1,8 @@
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { TimeBadge } from './LimitNotice';
+import { LegalLink } from './LegalLink';
+import { LEGAL_LINKS, OPERATOR } from '../data/legal';
 
 const NAV = [
   { to: '/', label: 'Главная', end: true },
@@ -33,7 +35,8 @@ export function Layout() {
       </nav>
       <footer className="footer container muted small">
         <p>© Пианино с нуля · Бесплатные занятия до 15 минут в день</p>
-        <p><Link to="/privacy">Политика конфиденциальности</Link> · <Link to="/terms">Пользовательское соглашение</Link></p>
+        <p>{LEGAL_LINKS.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<LegalLink to={l.to}>{l.label}</LegalLink></span>)}</p>
+        <p>{OPERATOR.name} · ОГРН {OPERATOR.ogrn} · ИНН {OPERATOR.inn} · КПП {OPERATOR.kpp}<br />{OPERATOR.address}</p>
       </footer>
     </>
   );

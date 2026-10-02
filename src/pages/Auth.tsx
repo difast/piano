@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Notice, Spinner } from '../components/Status';
+import { LegalLink } from '../components/LegalLink';
 
 export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const isReg = mode === 'register';
@@ -16,6 +17,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [consent, setConsent] = useState(false);
 
   if (status === 'loading') return <Spinner />;
   if (user) return <Navigate to={state?.from ?? '/learn'} replace />;
@@ -24,7 +26,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
     e.preventDefault();
     setError(''); setBusy(true);
     try {
-      if (isReg) await register(email, password, name); else await login(email, password);
+      if (isReg) await register(email, password, name, consent); else await login(email, password);
       nav(state?.from ?? '/learn', { replace: true });
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
@@ -39,10 +41,15 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
       <label>Email<input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
       <label>Пароль<input required type="password" minLength={isReg ? 8 : undefined} autoComplete={isReg ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
         {isReg && <span className="muted small">Не короче 8 символов</span>}</label>
+      {isReg && (
+        <label className="check">
+          <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          <span>Я даю <LegalLink to="/consent">согласие на обработку персональных данных</LegalLink> и принимаю <LegalLink to="/terms">пользовательское соглашение</LegalLink> и <LegalLink to="/privacy">политику конфиденциальности</LegalLink></span>
+        </label>
+      )}
       {error && <Notice kind="error">{error}</Notice>}
       <button className="btn primary" disabled={busy}>{busy ? 'Подождите…' : isReg ? 'Зарегистрироваться' : 'Войти'}</button>
       <p className="small">{isReg ? <>Уже есть аккаунт? <Link to="/login" state={state}>Войти</Link></> : <>Нет аккаунта? <Link to="/register" state={state}>Зарегистрироваться</Link></>}</p>
-      {isReg && <p className="muted small">Регистрируясь, вы принимаете <Link to="/terms">пользовательское соглашение</Link> и <Link to="/privacy">политику конфиденциальности</Link>.</p>}
     </form>
   );
 }

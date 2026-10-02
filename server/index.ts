@@ -6,6 +6,7 @@ import { COOKIE, createSession, destroySession, hashPassword, loadUser, rateLimi
 import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS } from '../src/data/course.ts';
 import { SONGS } from '../src/data/songs.ts';
+import { LEGAL_VERSION } from '../src/data/legal.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -38,11 +39,12 @@ api.post('/auth/register', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   const password = String(req.body?.password ?? '');
   const name = String(req.body?.name ?? '').trim().slice(0, 60);
+  if (req.body?.consent !== true) { res.status(400).json({ error: 'Для регистрации необходимо дать согласие на обработку персональных данных' }); return; }
   if (!EMAIL_RE.test(email)) { res.status(400).json({ error: 'Введите корректный email' }); return; }
   if (password.length < 8) { res.status(400).json({ error: 'Пароль должен быть не короче 8 символов' }); return; }
   if (password.length > 200) { res.status(400).json({ error: 'Пароль слишком длинный' }); return; }
   if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) { res.status(409).json({ error: 'Этот email уже зарегистрирован. Войдите в аккаунт.' }); return; }
-  const info = db.prepare('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)').run(email, name, await hashPassword(password));
+  const info = db.prepare("INSERT INTO users (email, name, password_hash, consent_at, consent_version) VALUES (?, ?, ?, datetime('now'), ?)").run(email, name, await hashPassword(password), LEGAL_VERSION);
   const id = Number(info.lastInsertRowid);
   setSessionCookie(req, res, id);
   req.user = { id, email, name, isPro: false };

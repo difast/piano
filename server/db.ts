@@ -48,3 +48,8 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// миграция: фиксируем момент и версию согласия на обработку персональных данных
+const userCols = (db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
+if (!userCols.includes('consent_at')) db.exec('ALTER TABLE users ADD COLUMN consent_at TEXT');
+if (!userCols.includes('consent_version')) db.exec('ALTER TABLE users ADD COLUMN consent_version TEXT');
