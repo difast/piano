@@ -17,7 +17,8 @@ import { Consent, Privacy, Terms } from './pages/Legal';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  // Эффект ничего не возвращает: иначе React вызовет результат scrollTo как функцию очистки
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   return null;
 }
 

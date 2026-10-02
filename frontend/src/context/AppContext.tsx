@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api, type ProgressState, type Snapshot, type User } from '../services/api';
+import { api, normalizeState, type ProgressState, type Snapshot, type User } from '../services/api';
 import { track } from '../services/analytics';
 import { currentLesson } from '../lib';
 import { FREE_DAILY_LIMIT_SEC } from '../data/config';
@@ -43,7 +43,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const pending = useRef(0);
   const flushing = useRef(false);
 
-  const apply = useCallback((s: Snapshot) => { setUser(s.user); setProgress(s.state); setDevTools(s.devTools); }, []);
+  const apply = useCallback((s: Snapshot) => {
+    if (!s?.user) throw new Error('Сервер вернул некорректный ответ');
+    setUser(s.user); setProgress(normalizeState(s.state)); setDevTools(!!s.devTools);
+  }, []);
 
   const load = useCallback(() => {
     setStatus('loading');
@@ -52,7 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStatus('ready');
     }).catch((e: Error) => { setLoadError(e.message); setStatus('error'); });
   }, [apply]);
-  useEffect(load, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const flush = useCallback((keepalive = false) => {
     if (pending.current <= 0 || flushing.current) return;
@@ -60,10 +63,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     pending.current = 0;
     flushing.current = true;
     api.tick(n, keepalive)
-      .then((r) => setProgress(() => {
-        const todaySeconds = r.state.todaySeconds + pending.current;
-        return { ...r.state, todaySeconds, history: { ...r.state.history, [r.state.today]: todaySeconds } };
-      }))
+      .then((r) => {
+        const st = normalizeState(r?.state);
+        setProgress(() => {
+          const todaySeconds = st.todaySeconds + pending.current;
+          return { ...st, todaySeconds, history: st.today ? { ...st.history, [st.today]: todaySeconds } : st.history };
+        });
+      })
       .catch(() => { pending.current += n; })
       .finally(() => { flushing.current = false; });
   }, []);

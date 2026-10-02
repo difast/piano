@@ -13,6 +13,19 @@ export interface ProgressState {
 
 export interface Snapshot { user: User; state: ProgressState; devTools: boolean }
 
+/** Приводит состояние прогресса к безопасному виду, даже если сервер вернул неполные данные. */
+export function normalizeState(s: Partial<ProgressState> | null | undefined): ProgressState {
+  return {
+    completedLessons: Array.isArray(s?.completedLessons) ? s.completedLessons : [],
+    learnedSongs: Array.isArray(s?.learnedSongs) ? s.learnedSongs : [],
+    history: s?.history && typeof s.history === 'object' ? s.history : {},
+    today: typeof s?.today === 'string' ? s.today : '',
+    todaySeconds: Number(s?.todaySeconds) || 0,
+    limitSeconds: Number(s?.limitSeconds) || 900,
+    limitReached: !!s?.limitReached,
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) { super(message); this.status = status; }
@@ -34,6 +47,8 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   }
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(data?.error ?? 'Что-то пошло не так. Попробуйте ещё раз.', res.status);
+  // ответ 200 без JSON — значит, запрос ушёл не на бэкенд (неверный VITE_API_URL или прокси)
+  if (res.status !== 204 && data === null) throw new ApiError('Сервер вернул некорректный ответ. Проверьте адрес бэкенда.', res.status);
   return data as T;
 }
 

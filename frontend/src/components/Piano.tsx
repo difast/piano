@@ -39,6 +39,7 @@ export function Piano({ startOctave = 3, octaves = 3, disabled, hint = [], showK
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+      if (!e.key) return;
       const note = KEY_MAP[e.key.toLowerCase()];
       if (!note || !valid.has(note)) return;
       e.preventDefault();
@@ -46,6 +47,7 @@ export function Piano({ startOctave = 3, octaves = 3, disabled, hint = [], showK
       down(note);
     };
     const onUp = (e: KeyboardEvent) => {
+      if (!e.key) return;
       const k = e.key.toLowerCase();
       if (!physical.current.delete(k)) return;
       up(KEY_MAP[k]);
