@@ -3,3 +3,5 @@ dist
 *.log
 data
 .env
+dist-preview
+piano-preview.html

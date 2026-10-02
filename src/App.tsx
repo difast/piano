@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { PREVIEW } from './env';
 import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './components/RequireAuth';
@@ -20,12 +21,13 @@ function ScrollToTop() {
   return null;
 }
 
+const Router = PREVIEW ? HashRouter : BrowserRouter;
 const guard = (el: JSX.Element) => <RequireAuth>{el}</RequireAuth>;
 
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <Router>
         <ScrollToTop />
         <Routes>
           <Route element={<Layout />}>
@@ -45,7 +47,7 @@ export default function App() {
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </Router>
     </AppProvider>
   );
 }
