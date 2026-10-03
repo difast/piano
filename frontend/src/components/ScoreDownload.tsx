@@ -34,7 +34,7 @@ export function ScoreDownload({ score }: { score: Score }) {
       <div className="pro-lock">
         <span className="badge pro">🔒 Доступно в Pro</span>
         <p className="muted small" style={{ margin: '6px 0' }}>Скачивание PDF-нот доступно на тарифе Pro.</p>
-        <Link className="btn primary" to="/profile" onClick={() => track('pro_required', { scoreId: score.id })}>Подключить Pro</Link>
+        <Link className="btn primary" to="/profile#plans" onClick={() => track('pro_required', { scoreId: score.id })}>Подключить Pro</Link>
       </div>
     );
   }

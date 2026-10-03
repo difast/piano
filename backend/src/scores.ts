@@ -18,6 +18,8 @@ export interface ScoreEntry {
   pdf: string | null;
   songId?: string;
   pages?: number;
+  /** доступно для просмотра на Free (скачивание — всегда только Pro) */
+  free?: boolean;
 }
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -45,6 +47,6 @@ export function pdfPath(e: ScoreEntry): string | null {
 export function publicScore(e: ScoreEntry) {
   return {
     id: e.id, title: e.title, composer: e.composer ?? '', difficulty: e.difficulty, genre: e.genre ?? '',
-    description: e.description ?? '', songId: e.songId ?? null, pages: e.pages ?? null, hasPdf: !!pdfPath(e),
+    description: e.description ?? '', songId: e.songId ?? null, pages: e.pages ?? null, hasPdf: !!pdfPath(e), free: e.free === true,
   };
 }

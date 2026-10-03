@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api, normalizeState, setToken, type ProgressState, type Snapshot, type User } from '../services/api';
+import { api, getToken, normalizeState, setToken, type ProgressState, type Snapshot, type User } from '../services/api';
 import { track } from '../services/analytics';
 import { levelFor, currentLesson, practiceStreak, shiftDay } from '../lib';
 import { FREE_DAILY_LIMIT_SEC } from '../data/config';
@@ -91,8 +91,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(() => {
     setStatus('loading');
+    const sent = getToken();
     api.me().then((r) => {
-      if (r.user) apply(r as Snapshot); else { setToken(null); setUser(null); setProgress(EMPTY); }
+      // гость: стираем ключ, только если это тот же ключ, с которым спрашивали (вход в другой вкладке не теряется)
+      if (r.user) apply(r as Snapshot); else { if (getToken() === sent) setToken(null); setUser(null); setProgress(EMPTY); }
       setStatus('ready');
     }).catch((e: Error) => { setLoadError(e.message); setStatus('error'); });
   }, [apply]);

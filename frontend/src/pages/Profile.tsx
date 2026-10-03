@@ -52,7 +52,7 @@ export default function Profile() {
                 ? (isForever(user.proUntil) ? <>Бессрочный доступ — <b>навсегда</b>.</> : <>Подписка действует <b>до {formatDate(user.proUntil)}</b>.</>)
                 : 'Pro включён.'}
             </p>
-            <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
+            <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Все песни и ноты, скачивание PDF</li><li>Подробная статистика в разделе «Прогресс»</li></ul>
             {billing?.enabled && !!upgrades.length && <>
               <h4 className="upgrade-title">Перейти на больший тариф</h4>
               <p className="muted small" style={{ margin: '0 0 10px' }}>Новый срок начнётся с момента окончания текущей подписки — оплаченные дни не пропадут.</p>
@@ -63,7 +63,7 @@ export default function Profile() {
         ) : (
           <>
             <h3>Pro — безлимитные занятия</h3>
-            <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
+            <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Все песни и ноты каталога (в Free — несколько)</li><li>Скачивание PDF-нот</li><li>Подробная статистика занятий</li></ul>
             {billing === null && <p className="muted small">Загрузка тарифов…</p>}
             {billing && !billing.enabled && <p className="muted">Оплата скоро появится.</p>}
             {billing?.enabled && (

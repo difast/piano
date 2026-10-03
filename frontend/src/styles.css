@@ -438,3 +438,12 @@ button, a, summary, label, select { touch-action: manipulation; }
 .ps-badge { font-size: .7rem; font-weight: 700; color: #fff; background: #16a34a; border-radius: 99px; padding: 1px 6px; }
 .plan-benefit { font-size: .88rem; color: #44403c; margin: -4px 0 12px; min-height: 2.6em; }
 .plan-benefit b { color: #15803d; }
+
+/* ===== закрытое в Free ===== */
+.pro-lock-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: #fde68a; background: linear-gradient(180deg, #fffbeb, #fff 70%); }
+.pro-lock-card .pro-lock-ico { font-size: 1.8rem; }
+.pro-lock-card h3 { margin: 4px 0; }
+.pro-lock-card .muted { max-width: 520px; } .pro-lock-card p { margin: 0 0 10px; }
+.stats-teaser { display: flex; align-items: flex-end; gap: 8px; height: 70px; width: min(320px, 100%); margin: 4px auto 14px; filter: blur(2px); opacity: .55; }
+.stats-teaser span { flex: 1; background: var(--brand); border-radius: 6px 6px 2px 2px; }
+.song-card.locked .cover { filter: grayscale(.6); opacity: .75; }

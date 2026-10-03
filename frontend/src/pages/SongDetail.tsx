@@ -14,17 +14,21 @@ import { useScores } from '../hooks/useScores';
 import { fitRange } from '../services/notes';
 import { LimitNotice } from '../components/LimitNotice';
 import { Notice } from '../components/Status';
+import { ProLock } from '../components/ProLock';
+import { FREE_SONG_IDS } from '../data/config';
+import { plural } from '../lib';
 
 export default function SongDetail() {
   const { id } = useParams();
   const song = SONGS.find((s) => s.id === id);
-  const { learnedSongs, setSongLearned, limitReached } = useApp();
+  const { learnedSongs, setSongLearned, limitReached, isPro } = useApp();
   const [showHint, setShowHint] = useState(false);
   const { scores } = useScores();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   usePageMeta(song ? `${song.title} — ${song.artist}` : 'Песня', song?.description ?? 'Песня для пианино.');
-  usePracticeTimer(!!song);
+  const locked = !!song && !isPro && !FREE_SONG_IDS.includes(song.id);
+  usePracticeTimer(!!song && !locked);
   useEffect(() => { if (song) track('song_open', { songId: song.id }); }, [song?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setShowHint(false); setError(''); }, [id]);
   if (!song) return <><h1>Песня не найдена</h1><Link to="/songs">← К каталогу</Link></>;
@@ -51,7 +55,11 @@ export default function SongDetail() {
         </div>
       </div>
 
-      {limitReached ? <LimitNotice /> : (
+      {locked ? (
+        <ProLock title="Эта песня доступна в Pro" place="song">
+          <p>На тарифе Free открыто {FREE_SONG_IDS.length} {plural(FREE_SONG_IDS.length, 'песня', 'песни', 'песен')}. С Pro — весь каталог песен и нот, скачивание PDF и занятия без ограничения по времени.</p>
+        </ProLock>
+      ) : limitReached ? <LimitNotice /> : (
         <>
           <VideoPlayer url={song.videoUrl} title={song.title} />
           <section className="card">
@@ -66,7 +74,7 @@ export default function SongDetail() {
           </section>
         </>
       )}
-      <section className="card">
+      {!locked && <section className="card">
         <h3>Ноты для фортепиано</h3>
         {songScores.length === 0 ? <p className="muted" style={{ margin: 0 }}>Нотный текст для этой песни пока не добавлен. Загляните в раздел «<Link to="/scores">Ноты</Link>».</p> : (
           songScores.map((sc) => (
@@ -76,13 +84,13 @@ export default function SongDetail() {
             </div>
           ))
         )}
-      </section>
+      </section>}
       {error && <Notice kind="error">{error}</Notice>}
-      <div className="actions">
+      {!locked && <div className="actions">
         <button className={`btn ${learned ? '' : 'primary'}`} onClick={toggle} disabled={busy}>
           {learned ? '✓ Песня выучена (отменить)' : 'Отметить как выученную'}
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

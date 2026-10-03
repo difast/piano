@@ -19,6 +19,9 @@ export const LESSONS: { id: string; prerequisites: string[] }[] = Array.from({ l
  */
 export const OLD_TO_NEW_COMPLETED = [1, 4, 6, 7, 8, 11, 14, 17, 19, 20, 22, 24];
 
+/** Песни, доступные на Free (остальные — Pro). Должно совпадать с frontend/src/data/config.ts. */
+export const FREE_SONG_IDS: string[] = ['ode-to-joy', 'twinkle', 'jingle', 'fur-elise'];
+
 export const SONG_IDS: string[] = [
   'interstellar', 'nuvole-bianche', 'ode-to-joy', 'twinkle', 'jingle',
   'fur-elise', 'moonlight', 'river-flows', 'clair-de-lune', 'liebestraum',

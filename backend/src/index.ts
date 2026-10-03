@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express';
 import { db } from './db.ts';
 import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, requireUser, sessionToken, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
-import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
+import { FREE_SONG_IDS, LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
 import { createReadStream } from 'node:fs';
 import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
@@ -129,6 +129,7 @@ api.put('/lessons/:id/stage', requireUser, async (req, res) => {
 api.put('/songs/:id/learned', requireUser, async (req, res) => {
   const songId = String(req.params.id);
   if (!SONG_IDS.includes(songId)) { res.status(404).json({ error: 'Песня не найдена' }); return; }
+  if (req.body?.learned && !FREE_SONG_IDS.includes(songId) && !req.user!.isPro) { res.status(403).json({ error: 'Эта песня доступна на тарифе Pro', code: 'pro_required' }); return; }
   if (req.body?.learned) await db.run('INSERT INTO learned_songs (user_id, song_id) VALUES (?, ?) ON CONFLICT DO NOTHING', req.user!.id, songId);
   else await db.run('DELETE FROM learned_songs WHERE user_id = ? AND song_id = ?', req.user!.id, songId);
   res.json(await snapshot(req));
@@ -188,6 +189,8 @@ api.get('/scores', (_req, res) => { res.json({ scores: loadScores().map(publicSc
 api.get('/scores/:id', (req, res) => {
   const e = loadScores().find((x) => x.id === String(req.params.id));
   if (!e) { res.status(404).json({ error: 'Ноты не найдены' }); return; }
+  // на Free открыты для просмотра только отмеченные free; остальные — Pro
+  if (!e.free && !req.user?.isPro) { res.status(403).json({ error: 'Эти ноты доступны на тарифе Pro', code: 'pro_required' }); return; }
   res.json({ score: publicScore(e) });
 });
 

@@ -5,6 +5,7 @@ import { normalize } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { coverFor, useScores } from '../hooks/useScores';
 import { Empty, ErrorBox, Spinner } from '../components/Status';
+import { useApp } from '../context/AppContext';
 
 const ORDER: Record<Difficulty, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 type Sort = 'title' | 'easy' | 'hard' | 'composer';
@@ -12,6 +13,8 @@ type Sort = 'title' | 'easy' | 'hard' | 'composer';
 export default function Scores() {
   usePageMeta('Ноты', 'Библиотека нот для фортепиано: поиск по названию и композитору, фильтры по сложности и жанру. Скачивание PDF — на тарифе Pro.');
   const { scores, error, reload } = useScores();
+  const { isPro } = useApp();
+  const freeCount = (scores ?? []).filter((s) => s.free).length;
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<Difficulty | 'all'>('all');
   const [genre, setGenre] = useState('all');
@@ -35,7 +38,7 @@ export default function Scores() {
   return (
     <>
       <h1>Ноты</h1>
-      <p className="lead" style={{ maxWidth: 680 }}>Ноты для фортепиано. Информация открыта всем, скачивать PDF могут пользователи тарифа Pro.</p>
+      <p className="lead" style={{ maxWidth: 680 }}>{isPro ? 'Ноты для фортепиано: все произведения открыты, PDF можно скачать.' : <>Ноты для фортепиано. На Free для просмотра открыто {freeCount || 'несколько'} произведений, остальные и скачивание PDF — с <Link to="/profile#plans">Pro</Link>.</>}</p>
       {error && !scores ? <ErrorBox message={error} onRetry={reload} /> : !scores ? <Spinner /> : (
         <>
           <input type="search" className="search" placeholder="Поиск по названию, композитору или жанру" aria-label="Поиск нот" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -60,7 +63,7 @@ export default function Scores() {
           ) : (
             <div className="song-grid">
               {list.map((s) => (
-                <Link key={s.id} to={`/scores/${s.id}`} className="song-card card">
+                <Link key={s.id} to={`/scores/${s.id}`} className={`song-card card${!isPro && !s.free ? ' locked' : ''}`}>
                   <div className="cover" style={{ background: coverFor(s.id) }}><span>♪</span></div>
                   <b className="song-title">{s.title}</b>
                   <span className="muted small">{s.composer}</span>
@@ -68,7 +71,8 @@ export default function Scores() {
                   <div className="row">
                     <span className={`badge lvl-${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span>
                     {s.genre && <span className="badge">{s.genre}</span>}
-                    <span className={`badge ${s.hasPdf ? 'ok' : ''}`}>{s.hasPdf ? '📄 PDF' : 'PDF скоро'}</span>
+                    {!isPro && !s.free ? <span className="badge pro">🔒 Pro</span>
+                      : <span className={`badge ${s.hasPdf ? 'ok' : ''}`}>{s.hasPdf ? '📄 PDF' : 'PDF скоро'}</span>}
                   </div>
                 </Link>
               ))}

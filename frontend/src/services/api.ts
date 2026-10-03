@@ -36,11 +36,15 @@ export function normalizeState(s: Partial<ProgressState> | null | undefined): Pr
 export interface Score {
   id: string; title: string; composer: string; difficulty: 'beginner' | 'intermediate' | 'advanced';
   genre: string; description: string; songId: string | null; pages: number | null; hasPdf: boolean;
+  /** открыто для просмотра на Free */
+  free?: boolean;
 }
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) { super(message); this.status = status; }
+  /** машинный код ошибки сервера, например pro_required */
+  code?: string;
+  constructor(message: string, status: number, code?: string) { super(message); this.status = status; this.code = code; }
 }
 
 /** Адрес бэкенда при раздельном деплое. Пусто — тот же домен. */
@@ -51,7 +55,7 @@ const API_URL = (window.__APP_CONFIG__?.apiUrl || (import.meta.env.VITE_API_URL 
 // Токен сессии. Фронт и API на разных доменах, а браузеры (Safari, режим инкогнито, защита от слежки)
 // могут не отправлять cookie на чужой домен — поэтому вход держится на токене в заголовке Authorization.
 const TOKEN_KEY = 'piano_session';
-const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
+export const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
 export const setToken = (t: string | null) => { try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch { /* хранилище недоступно — остаётся cookie */ } };
 const authHeaders = (): Record<string, string> => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
 
@@ -74,7 +78,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
     if (res.status >= 500 && !data?.error) throw new ApiError(MSG_UNAVAILABLE, res.status);
-    throw new ApiError(data?.error ?? 'Что-то пошло не так. Попробуйте ещё раз.', res.status);
+    throw new ApiError(data?.error ?? 'Что-то пошло не так. Попробуйте ещё раз.', res.status, data?.code);
   }
   // ответ 200 без JSON — запрос ушёл не на бэкенд (неверный адрес API или прокси)
   if (res.status !== 204 && data === null) { console.error('[api] ответ не JSON — проверьте apiUrl в config.js'); throw new ApiError(MSG_UNAVAILABLE, res.status); }
