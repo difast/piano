@@ -43,7 +43,12 @@ export async function sendVerification(userId: number, email: string) {
 
 export async function confirmEmail(token: string) {
   const userId = await useToken(token, 'verify');
-  await db.run('UPDATE users SET email_verified_at = COALESCE(email_verified_at, ?) WHERE id = ?', new Date().toISOString(), userId);
+  const first = await db.run('UPDATE users SET email_verified_at = ? WHERE id = ? AND email_verified_at IS NULL', new Date().toISOString(), userId);
+  // приветствие — один раз, после первого подтверждения почты (значит, адрес настоящий)
+  if (first === 1 && mailEnabled()) {
+    const u = await db.get<{ email: string; name: string }>('SELECT email, name FROM users WHERE id = ?', userId);
+    if (u) sendMail(u.email, 'Добро пожаловать в Piano Lab 🎹', mails.welcome(u.name)).catch((e) => console.error('[mail] приветствие:', (e as Error).message));
+  }
   return userId;
 }
 

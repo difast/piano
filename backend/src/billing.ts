@@ -22,6 +22,7 @@ const API = (process.env.YOOKASSA_API_URL ?? 'https://api.yookassa.ru/v3').repla
 const SHOP = (process.env.YOOKASSA_SHOP_ID ?? '').trim();
 const KEY = (process.env.YOOKASSA_SECRET_KEY ?? '').trim();
 import { FRONTEND } from './config.ts';
+import { mailEnabled, mails, sendMail, SUPPORT_EMAIL } from './mail.ts';
 /** Код НДС в чеке (1 — без НДС, 2 — 0%, 3 — 10%, 4 — 20% …). Зависит от системы налогообложения организации. */
 const VAT_CODE = Number(process.env.YOOKASSA_VAT_CODE ?? 1);
 /** Система налогообложения (1 ОСН, 2 УСН доход, 3 УСН доход-расход, …). Нужна только если в магазине их несколько. */
@@ -154,7 +155,8 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
   // платёж обязан совпадать с заказом по id, сумме, валюте и метаданным
   if (!o.yk_id || p.id !== o.yk_id || p.amount?.value !== o.amount || p.amount?.currency !== o.currency || p.metadata?.order_id !== o.id) return 'noop';
   if (p.status === 'succeeded' && p.paid === true) {
-    return db.tx(async (t) => {
+    let mail: Parameters<typeof mails.proPaid>[0] | null = null;
+    const r = await db.tx(async (t) => {
       const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), o.id);
       if (done !== 1) return 'noop';    // уже обработан раньше
       const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
@@ -162,8 +164,17 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
       const until = o.days === 0 || isForever(cur) ? FOREVER : new Date(base + o.days * 86_400_000).toISOString();
       await t.run('UPDATE users SET pro_until = ? WHERE id = ?', until, o.user_id);
       await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));
+      const forever = until === FOREVER;
+      const startsLater = !forever && base > Date.now() + 60_000 ? new Date(base).toISOString() : null;
+      mail = { planTitle: DEFS.find((d) => d.id === o.plan)?.title ?? 'Pro', amount: o.amount, until, forever, startsLater };
       return 'activated' as const;
     });
+    // письмо об оплате — после фиксации в базе, в фоне (ЮKassa ждёт быстрый ответ на уведомление)
+    if (r === 'activated' && mail && mailEnabled()) {
+      const to = (await db.get<{ email: string }>('SELECT email FROM users WHERE id = ?', o.user_id))?.email;
+      if (to) sendMail(to, 'Pro подключён 👑', mails.proPaid(mail), SUPPORT_EMAIL || undefined).catch((e) => console.error('[mail] оплата:', (e as Error).message));
+    }
+    return r;
   }
   if (p.status === 'canceled') {
     return (await db.run("UPDATE payments SET status = 'canceled' WHERE id = ? AND status IN ('new', 'pending')", o.id)) === 1 ? 'canceled' : 'noop';
