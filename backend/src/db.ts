@@ -151,4 +151,42 @@ await db.run(`CREATE TABLE IF NOT EXISTS events (
     props TEXT,
     created_at TEXT NOT NULL DEFAULT ${NOW}
   )`);
+// ---- почта, уведомления, купоны ----
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TEXT');
+/** настройки уведомлений (JSON): emailNews, browserNotify, remind, remindTime "HH:MM", songOfDay */
+await db.run("ALTER TABLE users ADD COLUMN IF NOT EXISTS settings TEXT NOT NULL DEFAULT '{}'");
+/** день (YYYY-MM-DD по APP_TZ), когда последний раз отправили напоминание / композицию дня */
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS notified_day TEXT');
+await db.run(`CREATE TABLE IF NOT EXISTS email_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,                         -- verify | reset
+    expires_at BIGINT NOT NULL,
+    used_at TEXT
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    data TEXT NOT NULL,                         -- JSON подписки браузера
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS coupons (
+    code TEXT PRIMARY KEY,                      -- в верхнем регистре
+    days INTEGER NOT NULL,                      -- сколько дней Pro даёт (0 — навсегда)
+    max_uses INTEGER NOT NULL DEFAULT 1,
+    used INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT,                            -- ISO; NULL — бессрочно
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS coupon_uses (
+    code TEXT NOT NULL REFERENCES coupons(code) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    used_at TEXT NOT NULL DEFAULT ${NOW},
+    PRIMARY KEY (code, user_id)
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+// Платежи храним и после удаления аккаунта (бухгалтерия, возвраты): связь с пользователем обнуляется
+await db.run('ALTER TABLE payments ALTER COLUMN user_id DROP NOT NULL');
+await db.run('ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_user_id_fkey');
+await db.run('ALTER TABLE payments ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL');
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

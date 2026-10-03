@@ -6,7 +6,7 @@ export type AnalyticsEvent =
   | 'home_view' | 'start_learning_click' | 'signup' | 'login'
   | 'lesson_start' | 'lesson_complete'
   | 'song_open' | 'song_learned'
-  | 'piano_open' | 'limit_reached' | 'pro_click' | 'pay_start' | 'pay_success' | 'pay_canceled' | 'pro_expiry_notice' | 'pro_upsell_open' | 'ui_error'
+  | 'piano_open' | 'limit_reached' | 'pro_click' | 'pay_start' | 'pay_success' | 'pay_canceled' | 'pro_expiry_notice' | 'pro_upsell_open' | 'settings_change' | 'share_click' | 'coupon_redeemed' | 'account_deleted' | 'ui_error'
   | 'stage_complete' | 'score_open' | 'score_download' | 'pro_required';
 
 export interface AnalyticsProvider { track(name: AnalyticsEvent, props?: Record<string, unknown>): void }

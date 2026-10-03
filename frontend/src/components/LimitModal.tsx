@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { LIMIT_SUB, LIMIT_TEXT, LIMIT_TITLE } from './LimitNotice';
 import { track } from '../services/analytics';
+import { useUpsell } from '../context/UpsellContext';
 
 /** Полноценное окно, когда дневное время закончилось. Прогресс урока при этом сохранён. */
 export function LimitModal() {
   const { limitModal, closeLimitModal } = useApp();
   const nav = useNavigate();
   const primary = useRef<HTMLButtonElement>(null);
+  const { offerPro } = useUpsell();
 
   useEffect(() => {
     if (!limitModal) return;
@@ -28,7 +30,7 @@ export function LimitModal() {
         <p>{LIMIT_SUB}</p>
         <div className="actions">
           <button className="btn" onClick={() => { closeLimitModal(); nav('/progress'); }}>Продолжить завтра</button>
-          <button ref={primary} className="btn primary" onClick={() => { track('pro_click', { place: 'limit_modal' }); closeLimitModal(); nav('/profile#plans'); }}>Заниматься без ограничений → Pro</button>
+          <button ref={primary} className="btn primary" onClick={() => { track('pro_click', { place: 'limit_modal' }); closeLimitModal(); offerPro({ title: 'Занимайтесь без ограничений', text: 'Бесплатные 15 минут на сегодня закончились. С Pro можно продолжить прямо сейчас — без лимита по времени.', place: 'limit_modal' }); }}>Заниматься без ограничений → Pro</button>
         </div>
       </div>
     </div>

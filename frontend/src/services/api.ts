@@ -1,4 +1,7 @@
-export interface User { id: number; email: string; name: string; isPro: boolean; /** дата окончания оплаченной подписки (ISO) */ proUntil?: string | null }
+export interface User { id: number; email: string; name: string; isPro: boolean; /** дата окончания оплаченной подписки (ISO) */ proUntil?: string | null; /** почта подтверждена */ emailVerified?: boolean }
+
+export interface NotifySettings { emailNews: boolean; browserNotify: boolean; remind: boolean; remindTime: string; songOfDay: boolean }
+export interface SettingsInfo { settings: NotifySettings; emailVerified: boolean; mailEnabled: boolean; pushKey: string; songOfDay: { id: string; title: string; artist: string } }
 
 export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
 export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[] }
@@ -113,5 +116,21 @@ export const api = {
   billingPlans: () => request<BillingInfo>('GET', '/billing/plans'),
   checkout: (plan: string) => request<{ orderId: string; url: string }>('POST', '/billing/checkout', { plan }),
   order: (id: string) => request<OrderStatus>('GET', `/billing/orders/${encodeURIComponent(id)}`),
+  // почта и пароль
+  sendVerification: () => request<{ ok: true; already?: boolean }>('POST', '/auth/verify/send', {}),
+  verifyEmail: (token: string) => request<{ ok: true }>('POST', '/auth/verify', { token }),
+  forgotPassword: (email: string) => request<{ ok: true }>('POST', '/auth/forgot', { email }),
+  resetPassword: async (token: string, password: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/reset', { token, password })),
+  changePassword: (current: string, password: string) => request<{ ok: true }>('POST', '/me/password', { current, password }),
+  deleteAccount: async (password: string) => { const r = await request<{ ok: true }>('POST', '/me/delete', { password }); setToken(null); return r; },
+  // настройки и уведомления
+  settings: () => request<SettingsInfo>('GET', '/me/settings'),
+  saveSettings: (patch: Partial<NotifySettings>) => request<{ settings: NotifySettings }>('PUT', '/me/settings', patch),
+  pushSubscribe: (subscription: unknown) => request<{ ok: true }>('POST', '/push/subscribe', { subscription }),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('POST', '/push/unsubscribe', { endpoint }),
+  pushTest: () => request<{ ok: boolean; delivered: number }>('POST', '/push/test', {}),
+  // поддержка и купоны
+  support: (message: string, email?: string) => request<{ ok: true }>('POST', '/support', { message, email }),
+  redeemCoupon: (code: string) => request<{ ok: true; proUntil: string; days: number }>('POST', '/coupons/redeem', { code }),
   event: (body: unknown) => request<null>('POST', '/events', body, true),
 };

@@ -1,10 +1,13 @@
 import express, { type Request, type Response } from 'express';
 import { db } from './db.ts';
-import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, requireUser, sessionToken, verifyPassword } from './auth.ts';
+import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, requireUser, sessionHash, sessionToken, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
 import { FREE_SONG_IDS, LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
 import { createReadStream } from 'node:fs';
+import { AccountError, confirmEmail, deleteAccount, getSettings, redeemCoupon, requestReset, resetPassword, saveSettings, sendVerification } from './account.ts';
+import { mailEnabled, mails, sendMail, SUPPORT_EMAIL, verifyMail } from './mail.ts';
+import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
@@ -38,7 +41,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '32kb' }));
 app.use(loadUser);
 
 const api = express.Router();
@@ -49,7 +52,7 @@ api.use((req, res, next) => {
   next();
 });
 
-const publicUser = (u: { id: number; email: string; name: string; isPro: boolean; proUntil: string | null }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro, proUntil: u.proUntil });
+const publicUser = (u: { id: number; email: string; name: string; isPro: boolean; proUntil: string | null; emailVerified?: boolean }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro, proUntil: u.proUntil, emailVerified: !!u.emailVerified });
 const snapshot = async (req: Request) => ({ user: publicUser(req.user!), state: await getState(req.user!.id, req.user!.isPro), devTools: DEV_TOOLS });
 
 /** Создаёт сессию: cookie (если браузер её примет) + токен в ответе, который фронт шлёт в заголовке Authorization. */
@@ -79,15 +82,17 @@ api.post('/auth/register', async (req, res) => {
     throw e;
   }
   const token = await setSessionCookie(req, res, id);
-  req.user = { id, email, name, isPro: false, proUntil: null };
+  req.user = { id, email, name, isPro: false, proUntil: null, emailVerified: false };
+  // письмо с подтверждением — в фоне, регистрация от него не зависит
+  sendVerification(id, email).catch((e) => console.error('[mail] подтверждение:', (e as Error).message));
   res.status(201).json({ ...(await snapshot(req)), token });
 });
 
 api.post('/auth/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!rateLimit(`login:${req.ip}:${email}`)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
-  const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; hash: string }>(
-    'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", password_hash AS hash FROM users WHERE email = ?', email);
+  const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; hash: string }>(
+    'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt", password_hash AS hash FROM users WHERE email = ?', email);
   const ok = row ? await verifyPassword(String(req.body?.password ?? ''), row.hash) : false;
   if (!row || !ok) { res.status(401).json({ error: 'Неверный email или пароль' }); return; }
   const token = await setSessionCookie(req, res, row.id);
@@ -147,6 +152,128 @@ api.post('/dev/pro', requireUser, async (req, res) => {
   await db.run('UPDATE users SET is_pro = ? WHERE id = ?', req.body?.isPro ? 1 : 0, req.user!.id);
   req.user!.isPro = !!req.body?.isPro;
   res.json(await snapshot(req));
+});
+
+// ---- Почта: подтверждение, сброс и смена пароля ----
+const accountError = (res: Response, e: unknown) => {
+  if (e instanceof AccountError) { res.status(e.status).json({ error: e.message }); return true; }
+  return false;
+};
+
+api.post('/auth/verify/send', requireUser, async (req, res) => {
+  if (req.user!.emailVerified) { res.json({ ok: true, already: true }); return; }
+  if (!rateLimit(`verify:${req.user!.id}`, 3, 10 * 60_000)) { res.status(429).json({ error: 'Письмо уже отправлено. Проверьте почту (и папку «Спам») или попробуйте через 10 минут.' }); return; }
+  try {
+    if (!(await sendVerification(req.user!.id, req.user!.email))) { res.status(503).json({ error: 'Отправка писем временно недоступна. Попробуйте позже.' }); return; }
+    res.json({ ok: true });
+  } catch (e) { console.error('[mail] подтверждение:', (e as Error).message); res.status(502).json({ error: 'Не удалось отправить письмо. Попробуйте позже.' }); }
+});
+
+api.post('/auth/verify', async (req, res) => {
+  try { await confirmEmail(String(req.body?.token ?? '')); res.json({ ok: true }); }
+  catch (e) { if (!accountError(res, e)) throw e; }
+});
+
+api.post('/auth/forgot', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) { res.status(400).json({ error: 'Введите корректный email' }); return; }
+  if (!rateLimit(`forgot:${req.ip}`, 5, 10 * 60_000) || !rateLimit(`forgot:${email}`, 3, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много запросов. Попробуйте через 10 минут.' }); return; }
+  try { await requestReset(email); }
+  catch (e) {
+    if (accountError(res, e)) return;
+    console.error('[mail] сброс пароля:', (e as Error).message); res.status(502).json({ error: 'Не удалось отправить письмо. Попробуйте позже.' }); return;
+  }
+  // одинаковый ответ, есть такой адрес или нет — чтобы нельзя было проверять чужие почты
+  res.json({ ok: true });
+});
+
+api.post('/auth/reset', async (req, res) => {
+  const password = String(req.body?.password ?? '');
+  if (password.length < 8) { res.status(400).json({ error: 'Пароль должен быть не короче 8 символов' }); return; }
+  if (password.length > 200) { res.status(400).json({ error: 'Пароль слишком длинный' }); return; }
+  if (!rateLimit(`reset:${req.ip}`, 10, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
+  try {
+    const userId = await resetPassword(String(req.body?.token ?? ''), await hashPassword(password));
+    const row = (await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null }>(
+      'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt" FROM users WHERE id = ?', userId))!;
+    const token = await setSessionCookie(req, res, userId);
+    req.user = toAuthUser(row);
+    res.json({ ...(await snapshot(req)), token });
+  } catch (e) { if (!accountError(res, e)) throw e; }
+});
+
+api.post('/me/password', requireUser, async (req, res) => {
+  const current = String(req.body?.current ?? '');
+  const password = String(req.body?.password ?? '');
+  if (!rateLimit(`pwd:${req.user!.id}`, 5, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через 10 минут.' }); return; }
+  const row = (await db.get<{ hash: string }>('SELECT password_hash AS hash FROM users WHERE id = ?', req.user!.id))!;
+  if (!(await verifyPassword(current, row.hash))) { res.status(400).json({ error: 'Текущий пароль указан неверно' }); return; }
+  if (password.length < 8) { res.status(400).json({ error: 'Новый пароль должен быть не короче 8 символов' }); return; }
+  if (password.length > 200) { res.status(400).json({ error: 'Пароль слишком длинный' }); return; }
+  if (password === current) { res.status(400).json({ error: 'Новый пароль совпадает с текущим' }); return; }
+  await db.run('UPDATE users SET password_hash = ? WHERE id = ?', await hashPassword(password), req.user!.id);
+  // остальные устройства выходят, текущее остаётся в аккаунте
+  await db.run('DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?', req.user!.id, sessionHash(sessionToken(req) ?? ''));
+  if (mailEnabled()) sendMail(req.user!.email, 'Пароль изменён', mails.passwordChanged()).catch((e) => console.error('[mail]', (e as Error).message));
+  res.json({ ok: true });
+});
+
+// ---- Удаление аккаунта (с паролем) ----
+api.post('/me/delete', requireUser, async (req, res) => {
+  if (!rateLimit(`del:${req.user!.id}`, 5, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
+  const row = (await db.get<{ hash: string }>('SELECT password_hash AS hash FROM users WHERE id = ?', req.user!.id))!;
+  if (!(await verifyPassword(String(req.body?.password ?? ''), row.hash))) { res.status(400).json({ error: 'Пароль указан неверно' }); return; }
+  const email = req.user!.email;
+  await deleteAccount(req.user!.id);
+  res.clearCookie(COOKIE, { path: '/' });
+  if (mailEnabled()) sendMail(email, 'Аккаунт удалён', mails.accountDeleted()).catch((e) => console.error('[mail]', (e as Error).message));
+  res.json({ ok: true });
+});
+
+// ---- Настройки уведомлений и браузерные уведомления ----
+api.get('/me/settings', requireUser, async (req, res) => {
+  res.json({ settings: await getSettings(req.user!.id), emailVerified: req.user!.emailVerified, mailEnabled: mailEnabled(), pushKey: pushPublicKey(), songOfDay: songOfDay() });
+});
+api.put('/me/settings', requireUser, async (req, res) => {
+  try { res.json({ settings: await saveSettings(req.user!.id, (req.body ?? {}) as Record<string, unknown>) }); }
+  catch (e) { if (!accountError(res, e)) throw e; }
+});
+api.post('/push/subscribe', requireUser, async (req, res) => {
+  try { await savePushSubscription(req.user!.id, req.body?.subscription); res.json({ ok: true }); }
+  catch { res.status(400).json({ error: 'Не удалось включить уведомления в этом браузере' }); }
+});
+api.post('/push/unsubscribe', requireUser, async (req, res) => {
+  await removePushSubscription(req.user!.id, String(req.body?.endpoint ?? '')); res.json({ ok: true });
+});
+api.post('/push/test', requireUser, async (req, res) => {
+  if (!rateLimit(`pushtest:${req.user!.id}`, 3, 60_000)) { res.status(429).json({ error: 'Подождите минуту' }); return; }
+  const n = await sendPush(req.user!.id, { title: 'Уведомления включены 🎹', body: 'Так будут выглядеть напоминания о занятиях.', url: '/profile', tag: 'test' });
+  res.json({ ok: n > 0, delivered: n });
+});
+api.get('/song-of-day', (_req, res) => { res.json({ song: songOfDay() }); });
+
+// ---- Поддержка ----
+api.post('/support', async (req, res) => {
+  const message = String(req.body?.message ?? '').trim();
+  const email = (req.user?.email ?? String(req.body?.email ?? '').trim().toLowerCase());
+  if (!rateLimit(`support:${req.user?.id ?? req.ip}`, 3, 10 * 60_000)) { res.status(429).json({ error: 'Вы уже отправили несколько сообщений. Попробуйте через 10 минут.' }); return; }
+  if (!EMAIL_RE.test(email)) { res.status(400).json({ error: 'Укажите email, чтобы мы могли ответить' }); return; }
+  if (message.length < 10) { res.status(400).json({ error: 'Опишите вопрос подробнее (хотя бы пару предложений)' }); return; }
+  if (message.length > 4000) { res.status(400).json({ error: 'Сообщение слишком длинное (до 4000 символов)' }); return; }
+  if (!mailEnabled() || !SUPPORT_EMAIL) { res.status(503).json({ error: `Отправка временно недоступна. Напишите нам на почту${SUPPORT_EMAIL ? ` ${SUPPORT_EMAIL}` : ''}.` }); return; }
+  try {
+    await sendMail(SUPPORT_EMAIL, `Поддержка: ${message.slice(0, 60).replace(/\s+/g, ' ')}`, mails.support(email, req.user?.name ?? '', req.user?.id ?? null, message), email);
+    sendMail(email, 'Мы получили ваше сообщение', mails.supportCopy(message)).catch(() => undefined);
+    await db.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', req.user?.id ?? null, 'support_message', '{}');
+    res.json({ ok: true });
+  } catch (e) { console.error('[mail] поддержка:', (e as Error).message); res.status(502).json({ error: 'Не удалось отправить сообщение. Попробуйте позже.' }); }
+});
+
+// ---- Купоны ----
+api.post('/coupons/redeem', requireUser, async (req, res) => {
+  if (!rateLimit(`coupon:${req.user!.id}`, 5, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через 10 минут.' }); return; }
+  try { const r = await redeemCoupon(req.user!.id, String(req.body?.code ?? '')); res.json({ ok: true, ...r }); }
+  catch (e) { if (!accountError(res, e)) throw e; }
 });
 
 // ---- Оплата Pro через ЮKassa ----
@@ -231,8 +358,11 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
 });
 
 const port = Number(process.env.PORT) || 3001;
-app.listen(port, () => {
+await initPush();
+if (process.env.NOTIFY_SCHEDULER !== '0') startScheduler();
+app.listen(port, async () => {
   console.log(`Server: http://localhost:${port}`);
+  console.log(`Почта (SMTP): ${await verifyMail()}`);
   const b = billingInfo();
   console.log(b.enabled ? `Оплата ЮKassa: включена (тарифов: ${b.plans.length})` : `Оплата ЮKassa: выключена — не заданы: ${b.missing.join(', ')}`);
 });

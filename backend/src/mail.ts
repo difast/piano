@@ -1,0 +1,67 @@
+import nodemailer from 'nodemailer';
+import { APP_NAME, FRONTEND } from './config.ts';
+
+/**
+ * Отправка писем через SMTP. По умолчанию порт 465 с SSL (secure).
+ * Переменные: SMTP_HOST, SMTP_PORT (465), SMTP_USER, SMTP_PASS, MAIL_FROM, SUPPORT_EMAIL.
+ */
+const HOST = (process.env.SMTP_HOST ?? '').trim();
+const PORT = Number(process.env.SMTP_PORT) || 465;
+const USER = (process.env.SMTP_USER ?? '').trim();
+const PASS = process.env.SMTP_PASS ?? '';
+export const MAIL_FROM = (process.env.MAIL_FROM || USER).trim();
+export const SUPPORT_EMAIL = (process.env.SUPPORT_EMAIL || USER).trim();
+
+export const mailEnabled = () => !!(HOST && USER && PASS && MAIL_FROM);
+export const mailMissing = () => ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].filter((k) => !(process.env[k] ?? '').trim());
+
+const transport = mailEnabled()
+  ? nodemailer.createTransport({
+    host: HOST, port: PORT, secure: PORT === 465, auth: { user: USER, pass: PASS },
+    connectionTimeout: 15_000, greetingTimeout: 15_000, socketTimeout: 30_000,
+    // только для локальных тестов с самоподписанным сертификатом
+    tls: process.env.SMTP_TLS_INSECURE === '1' ? { rejectUnauthorized: false } : undefined,
+  })
+  : null;
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+
+/** Простое письмо в фирменной обёртке: заголовок, абзацы, необязательная кнопка. */
+function layout(title: string, paragraphs: string[], button?: { url: string; label: string }, footer?: string) {
+  const html = `<!doctype html><html><body style="margin:0;background:#fafaf9;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1c1917">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border:1px solid #e7e5e4;border-radius:14px">
+<tr><td style="padding:24px 24px 8px;font-size:18px;font-weight:700">🎹 ${esc(APP_NAME)}</td></tr>
+<tr><td style="padding:0 24px"><h1 style="font-size:20px;margin:12px 0">${esc(title)}</h1>
+${paragraphs.map((p) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px">${esc(p)}</p>`).join('')}
+${button ? `<p style="margin:20px 0"><a href="${esc(button.url)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:10px">${esc(button.label)}</a></p>
+<p style="font-size:12px;color:#78716c;word-break:break-all">Если кнопка не работает, откройте ссылку: ${esc(button.url)}</p>` : ''}
+</td></tr>
+<tr><td style="padding:12px 24px 24px;font-size:12px;color:#78716c">${esc(footer ?? 'Вы получили это письмо, потому что зарегистрированы на сайте.')}</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = [title, '', ...paragraphs, ...(button ? ['', `${button.label}: ${button.url}`] : []), '', footer ?? ''].join('\n');
+  return { html, text };
+}
+
+export async function sendMail(to: string, subject: string, body: { html: string; text: string }, replyTo?: string) {
+  if (!transport) throw new Error('Почта не настроена (SMTP_HOST, SMTP_USER, SMTP_PASS)');
+  await transport.sendMail({ from: `"${APP_NAME}" <${MAIL_FROM}>`, to, subject, html: body.html, text: body.text, replyTo });
+}
+
+/** Проверка соединения с SMTP при запуске (пишет в лог, не падает). */
+export async function verifyMail(): Promise<string> {
+  if (!transport) return `выключена — не заданы: ${mailMissing().join(', ')}`;
+  try { await transport.verify(); return `включена (${HOST}:${PORT}, отправитель ${MAIL_FROM})`; }
+  catch (e) { return `ОШИБКА подключения к ${HOST}:${PORT}: ${(e as Error).message}`; }
+}
+
+export const mails = {
+  verify: (url: string) => layout('Подтвердите почту', ['Чтобы подтвердить адрес электронной почты, нажмите кнопку ниже. Ссылка действует 3 дня.', 'Если вы не регистрировались, просто проигнорируйте письмо.'], { url, label: 'Подтвердить почту' }),
+  reset: (url: string) => layout('Сброс пароля', ['Вы запросили сброс пароля. Нажмите кнопку, чтобы задать новый пароль. Ссылка действует 1 час и сработает один раз.', 'Если вы не запрашивали сброс — ничего не делайте, пароль останется прежним.'], { url, label: 'Задать новый пароль' }),
+  passwordChanged: () => layout('Пароль изменён', ['Пароль от вашего аккаунта только что изменили. Все остальные устройства вышли из аккаунта.', 'Если это были не вы — сразу восстановите доступ через «Забыли пароль?» на странице входа и напишите в поддержку.'], FRONTEND ? { url: `${FRONTEND}/forgot-password`, label: 'Восстановить доступ' } : undefined),
+  accountDeleted: () => layout('Аккаунт удалён', ['Ваш аккаунт и прогресс удалены по вашему запросу. Спасибо, что занимались с нами!', 'Если это были не вы — напишите в поддержку, ответив на это письмо.']),
+  support: (from: string, name: string, userId: number | null, message: string) => layout('Сообщение в поддержку', [`От: ${name ? `${name} ` : ''}<${from}>${userId ? `, id ${userId}` : ''}`, ...message.split(/\n+/)], undefined, 'Ответьте на это письмо — ответ уйдёт пользователю.'),
+  supportCopy: (message: string) => layout('Мы получили ваше сообщение', ['Спасибо! Мы ответим на этот адрес в ближайшее время.', 'Ваше сообщение:', ...message.split(/\n+/)]),
+  reminder: (url: string, name: string) => layout(`${name ? `${name}, ` : ''}пора позаниматься 🎹`, ['Даже 10 минут в день дают заметный результат. Ваш прогресс сохранён — продолжите с того же места.'], { url, label: 'Продолжить занятие' }, 'Напоминания можно выключить в профиле в разделе «Уведомления».'),
+  songOfDay: (url: string, title: string, artist: string) => layout('Композиция дня', [`Сегодня советуем: «${title}» — ${artist}. Попробуйте сыграть её на пианино!`], { url, label: 'Открыть композицию' }, 'Рассылку можно выключить в профиле в разделе «Уведомления».'),
+};

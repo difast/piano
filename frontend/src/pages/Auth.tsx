@@ -37,12 +37,13 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   return (
     <form className="card form auth" onSubmit={submit} ref={formRef}>
       <h1>{isReg ? 'Создайте аккаунт' : 'Вход'}</h1>
-      <p className="muted">{isReg ? 'Бесплатно. Прогресс сохранится и будет доступен на любом устройстве.' : 'С возвращением! Продолжим с того же места.'}</p>
+      <p className="muted">{isReg ? 'Бесплатно. Прогресс сохранится и будет доступен на любом устройстве. Мы пришлём письмо для подтверждения почты.' : 'С возвращением! Продолжим с того же места.'}</p>
       {state?.notice && <Notice>{state.notice}</Notice>}
       {isReg && <label>Имя (необязательно)<input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} /></label>}
       <label>Email<input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
       <label>Пароль<input required type="password" minLength={isReg ? 8 : undefined} autoComplete={isReg ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
         {isReg && <span className="muted small">Не короче 8 символов</span>}</label>
+      {!isReg && <p className="small" style={{ margin: '-6px 0 0', textAlign: 'right' }}><Link to="/forgot-password">Забыли пароль?</Link></p>}
       {isReg && (
         <label className="check">
           <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} />

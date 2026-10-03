@@ -465,3 +465,35 @@ button, a, summary, label, select { touch-action: manipulation; }
 .upsell-pricing .btn { width: 100%; justify-content: center; }
 .upsell-pricing .plan-benefit { margin-top: -2px; }
 .link-btn { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--muted); font-weight: 500; }
+
+/* ===== профиль: переключатели и разделы ===== */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.toggle-row:last-of-type { border-bottom: 0; }
+.toggle-row.disabled { opacity: .6; cursor: default; }
+.toggle-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toggle-row select { font: inherit; font-size: 16px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+.switch { appearance: none; -webkit-appearance: none; flex: none; width: 46px; height: 28px; border-radius: 99px; background: #d6d3d1; position: relative; cursor: pointer; transition: background .18s; margin: 0; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .18s; }
+.switch:checked { background: var(--brand); } .switch:checked::after { transform: translateX(18px); }
+.switch:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 2px; }
+.switch:disabled { cursor: default; }
+.ok-text { color: #15803d; } .warn-text { color: #b45309; }
+.inline-form { margin-top: 12px; display: grid; gap: 10px; max-width: 420px; }
+.help-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.help-buttons .btn { flex: 1 1 180px; justify-content: center; }
+.btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+.btn.danger:hover:not(:disabled) { background: #b91c1c; }
+.btn.danger:disabled { opacity: .5; }
+.danger-zone { border-color: #fecaca; }
+.modal.form-modal { position: relative; text-align: left; }
+.modal.form-modal h2, .modal.form-modal .modal-icon { text-align: center; }
+.modal.form-modal .form { display: grid; gap: 12px; }
+.modal.form-modal textarea, .modal.form-modal input:not([type=checkbox]) { width: 100%; font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; box-sizing: border-box; }
+.modal.form-modal textarea { resize: vertical; min-height: 120px; }
+.modal.form-modal .btn { justify-content: center; }
+
+/* ===== плашка «подтвердите почту» ===== */
+.verify-banner { background: #f0fdf4; border-bottom: 1px solid #bbf7d0; color: #14532d; font-size: .9rem; }
+.verify-inner { display: flex; align-items: center; gap: 12px; padding-top: 8px; padding-bottom: 8px; flex-wrap: wrap; }
+.verify-inner > span:first-child { flex: 1 1 260px; }
+.verify-x { background: none; border: 0; font-size: 1.3rem; line-height: 1; color: inherit; opacity: .7; cursor: pointer; }

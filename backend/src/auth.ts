@@ -21,6 +21,7 @@ export async function verifyPassword(pw: string, stored: string): Promise<boolea
 }
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+export const sessionHash = sha;
 
 export async function createSession(userId: number): Promise<{ token: string; maxAgeMs: number }> {
   const token = randomBytes(32).toString('base64url');
@@ -43,11 +44,11 @@ export function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export interface AuthUser { id: number; email: string; name: string; isPro: boolean; /** срок подписки Pro (ISO) или null */ proUntil: string | null }
+export interface AuthUser { id: number; email: string; name: string; isPro: boolean; /** срок подписки Pro (ISO) или null */ proUntil: string | null; /** почта подтверждена */ emailVerified: boolean }
 
 /** Pro активен, если включён вручную (тесты) или срок подписки ещё не истёк. */
-export const toAuthUser = (r: { id: number; email: string; name: string; isPro: number; proUntil: string | null }): AuthUser => ({
-  id: r.id, email: r.email, name: r.name, proUntil: r.proUntil,
+export const toAuthUser = (r: { id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt?: string | null }): AuthUser => ({
+  id: r.id, email: r.email, name: r.name, proUntil: r.proUntil, emailVerified: !!r.emailVerifiedAt,
   isPro: !!r.isPro || (!!r.proUntil && Date.parse(r.proUntil) > Date.now()),
 });
 declare module 'express-serve-static-core' { interface Request { user?: AuthUser } }
@@ -66,8 +67,8 @@ export async function loadUser(req: Request, _res: Response, next: NextFunction)
   const token = sessionToken(req);
   try {
     if (token) {
-      const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; exp: number }>(
-        `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", s.expires_at AS exp
+      const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; exp: number }>(
+        `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", u.email_verified_at AS "emailVerifiedAt", s.expires_at AS exp
          FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, sha(token));
       if (row && Number(row.exp) > Date.now()) {
         req.user = toAuthUser(row);

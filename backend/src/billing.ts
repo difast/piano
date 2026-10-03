@@ -20,12 +20,7 @@ class YkError extends Error {
 const API = (process.env.YOOKASSA_API_URL ?? 'https://api.yookassa.ru/v3').replace(/\/$/, '');
 const SHOP = (process.env.YOOKASSA_SHOP_ID ?? '').trim();
 const KEY = (process.env.YOOKASSA_SECRET_KEY ?? '').trim();
-/** Куда вернуть покупателя после оплаты (адрес фронтенда). */
-const FRONTEND = (() => {
-  const raw = (process.env.FRONTEND_URL || (process.env.CORS_ORIGIN ?? '').split(',')[0] || '').trim();
-  if (!raw) return '';
-  try { return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).origin; } catch { return ''; }
-})();
+import { FRONTEND } from './config.ts';
 /** Код НДС в чеке (1 — без НДС, 2 — 0%, 3 — 10%, 4 — 20% …). Зависит от системы налогообложения организации. */
 const VAT_CODE = Number(process.env.YOOKASSA_VAT_CODE ?? 1);
 /** Система налогообложения (1 ОСН, 2 УСН доход, 3 УСН доход-расход, …). Нужна только если в магазине их несколько. */

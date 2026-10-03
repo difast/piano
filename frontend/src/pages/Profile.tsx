@@ -8,6 +8,7 @@ import { PlanCards } from '../components/PlanCards';
 import { track } from '../services/analytics';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Notice } from '../components/Status';
+import { DeleteAccountCard, HelpCard, NotificationsCard, SecurityCard } from '../components/ProfileSections';
 
 export default function Profile() {
   usePageMeta('Профиль', 'Ваш аккаунт и тариф.');
@@ -76,6 +77,9 @@ export default function Profile() {
           </>
         )}
       </div>
+      <NotificationsCard />
+      <SecurityCard />
+      <HelpCard />
       <div className="card install-tip">
         <h3>Установите как приложение</h3>
         <p className="muted" style={{ margin: '0 0 8px' }}>Значок на экране телефона — и сайт открывается как приложение, без адресной строки.</p>
@@ -91,6 +95,7 @@ export default function Profile() {
           {error && <Notice kind="error">{error}</Notice>}
         </div>
       )}
+      <DeleteAccountCard />
     </div>
   );
 }

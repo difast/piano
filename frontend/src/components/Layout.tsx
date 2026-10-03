@@ -4,6 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { TimerBar } from './TimerBar';
 import { ProChip } from './ProChip';
+import { VerifyBanner } from './VerifyBanner';
 import { ProExpiryNotice } from './ProExpiryNotice';
 import { LimitModal } from './LimitModal';
 import { LegalLink } from './LegalLink';
@@ -97,6 +98,7 @@ export function Layout() {
       </aside>
 
       <TimerBar />
+      <VerifyBanner />
       <main className="container"><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></main>
       <LimitModal />
       <ProExpiryNotice />

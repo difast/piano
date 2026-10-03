@@ -15,6 +15,7 @@ import PianoPage from './pages/PianoPage';
 import ProgressPage from './pages/ProgressPage';
 import Profile from './pages/Profile';
 import PaymentReturn from './pages/PaymentReturn';
+import { ForgotPassword, ResetPassword, VerifyEmail } from './pages/PasswordPages';
 import Scores from './pages/Scores';
 import ScoreDetail from './pages/ScoreDetail';
 import Auth from './pages/Auth';
@@ -56,6 +57,9 @@ export default function App() {
             <Route path="piano" element={guard(<PianoPage />)} />
             <Route path="progress" element={guard(<ProgressPage />)} />
             <Route path="profile" element={guard(<Profile />)} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+            <Route path="verify-email" element={<VerifyEmail />} />
             <Route path="payment/return" element={guard(<PaymentReturn />)} />
             <Route path="privacy" element={<Privacy />} />
             <Route path="terms" element={<Terms />} />
