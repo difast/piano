@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api, normalizeState, type ProgressState, type Snapshot, type User } from '../services/api';
+import { api, normalizeState, setToken, type ProgressState, type Snapshot, type User } from '../services/api';
 import { track } from '../services/analytics';
 import { levelFor, currentLesson, practiceStreak, shiftDay } from '../lib';
 import { FREE_DAILY_LIMIT_SEC } from '../data/config';
@@ -92,14 +92,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const load = useCallback(() => {
     setStatus('loading');
     api.me().then((r) => {
-      if (r.user) apply(r as Snapshot); else { setUser(null); setProgress(EMPTY); }
+      if (r.user) apply(r as Snapshot); else { setToken(null); setUser(null); setProgress(EMPTY); }
       setStatus('ready');
     }).catch((e: Error) => { setLoadError(e.message); setStatus('error'); });
   }, [apply]);
   useEffect(() => { load(); }, [load]);
+  // Страница восстановлена кнопкой «Назад» из кэша браузера (например, вернулись со страницы оплаты) — тихо обновляем данные
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) refreshRef.current(); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
   const refresh = useCallback(async () => {
     try { const r = await api.me(); if (r.user) apply(r as Snapshot); } catch { /* оставляем прежние данные */ }
   }, [apply]);
+  const refreshRef = useRef(refresh); refreshRef.current = refresh;
 
   // --- отправка накопленного времени ---
   const flush = useCallback((keepalive = false) => {

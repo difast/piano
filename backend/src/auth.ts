@@ -53,15 +53,27 @@ export const toAuthUser = (r: { id: number; email: string; name: string; isPro: 
 declare module 'express-serve-static-core' { interface Request { user?: AuthUser } }
 
 /** Подставляет req.user, если есть валидная сессия. */
+/** Токен сессии: заголовок Authorization: Bearer (работает при любых настройках cookie в браузере) или cookie. */
+export function sessionToken(req: Request): string | undefined {
+  const h = req.headers.authorization;
+  if (h?.startsWith('Bearer ')) { const t = h.slice(7).trim(); if (t) return t; }
+  return readCookie(req, COOKIE);
+}
+
+const RENEW_MS = 15 * 86_400_000;
+
 export async function loadUser(req: Request, _res: Response, next: NextFunction) {
-  const token = readCookie(req, COOKIE);
+  const token = sessionToken(req);
   try {
     if (token) {
       const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; exp: number }>(
         `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", s.expires_at AS exp
          FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, sha(token));
-      if (row && Number(row.exp) > Date.now()) req.user = toAuthUser(row);
-      else if (row) await destroySession(token);
+      if (row && Number(row.exp) > Date.now()) {
+        req.user = toAuthUser(row);
+        // скользящий срок: активный пользователь не разлогинивается через 30 дней
+        if (Number(row.exp) - Date.now() < RENEW_MS) await db.run('UPDATE sessions SET expires_at = ? WHERE token_hash = ?', Date.now() + SESSION_DAYS * 86_400_000, sha(token));
+      } else if (row) await destroySession(token);
     }
   } catch (e) { next(e); return; }
   next();

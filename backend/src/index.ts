@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { db } from './db.ts';
-import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, readCookie, requireUser, verifyPassword } from './auth.ts';
+import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, requireUser, sessionToken, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
@@ -30,7 +30,7 @@ app.use((req, res, next) => {
   if (origin && CORS_ORIGINS.includes(origin.toLowerCase())) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     res.setHeader('Vary', 'Origin');
@@ -52,9 +52,11 @@ api.use((req, res, next) => {
 const publicUser = (u: { id: number; email: string; name: string; isPro: boolean; proUntil: string | null }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro, proUntil: u.proUntil });
 const snapshot = async (req: Request) => ({ user: publicUser(req.user!), state: await getState(req.user!.id, req.user!.isPro), devTools: DEV_TOOLS });
 
-async function setSessionCookie(req: Request, res: Response, userId: number) {
+/** Создаёт сессию: cookie (если браузер её примет) + токен в ответе, который фронт шлёт в заголовке Authorization. */
+async function setSessionCookie(req: Request, res: Response, userId: number): Promise<string> {
   const { token, maxAgeMs } = await createSession(userId);
   res.cookie(COOKIE, token, { httpOnly: true, sameSite: SAME_SITE, secure: req.secure || SAME_SITE === 'none', maxAge: maxAgeMs, path: '/' });
+  return token;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -76,9 +78,9 @@ api.post('/auth/register', async (req, res) => {
     if ((e as { code?: string }).code === '23505') { res.status(409).json({ error: 'Этот email уже зарегистрирован. Войдите в аккаунт.' }); return; }   // гонка двух регистраций
     throw e;
   }
-  await setSessionCookie(req, res, id);
+  const token = await setSessionCookie(req, res, id);
   req.user = { id, email, name, isPro: false, proUntil: null };
-  res.status(201).json(await snapshot(req));
+  res.status(201).json({ ...(await snapshot(req)), token });
 });
 
 api.post('/auth/login', async (req, res) => {
@@ -88,13 +90,13 @@ api.post('/auth/login', async (req, res) => {
     'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", password_hash AS hash FROM users WHERE email = ?', email);
   const ok = row ? await verifyPassword(String(req.body?.password ?? ''), row.hash) : false;
   if (!row || !ok) { res.status(401).json({ error: 'Неверный email или пароль' }); return; }
-  await setSessionCookie(req, res, row.id);
+  const token = await setSessionCookie(req, res, row.id);
   req.user = toAuthUser(row);
-  res.json(await snapshot(req));
+  res.json({ ...(await snapshot(req)), token });
 });
 
 api.post('/auth/logout', async (req, res) => {
-  await destroySession(readCookie(req, COOKIE));
+  await destroySession(sessionToken(req));
   res.clearCookie(COOKIE, { path: '/' });
   res.json({ ok: true });
 });

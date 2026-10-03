@@ -48,6 +48,13 @@ declare global { interface Window { __APP_CONFIG__?: { apiUrl?: string; /** вр
 /** Приоритет: public/config.js (задаётся без пересборки) → переменная сборки VITE_API_URL → тот же домен. */
 const API_URL = (window.__APP_CONFIG__?.apiUrl || (import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
 
+// Токен сессии. Фронт и API на разных доменах, а браузеры (Safari, режим инкогнито, защита от слежки)
+// могут не отправлять cookie на чужой домен — поэтому вход держится на токене в заголовке Authorization.
+const TOKEN_KEY = 'piano_session';
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
+export const setToken = (t: string | null) => { try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch { /* хранилище недоступно — остаётся cookie */ } };
+const authHeaders = (): Record<string, string> => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+
 export const MSG_OFFLINE = 'Не удаётся связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
 export const MSG_UNAVAILABLE = 'Сервис временно недоступен. Попробуйте через пару минут.';
 
@@ -56,7 +63,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   try {
     res = await fetch(`${API_URL}/api${path}`, {
       method, keepalive, credentials: API_URL ? 'include' : 'same-origin',
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: { ...authHeaders(), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -74,11 +81,13 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   return data as T;
 }
 
+const withToken = ({ token, ...snap }: Snapshot & { token?: string }): Snapshot => { if (token) setToken(token); return snap; };
+
 export const api = {
   me: () => request<Snapshot | { user: null }>('GET', '/me'),
-  register: (email: string, password: string, name: string, consent: boolean) => request<Snapshot>('POST', '/auth/register', { email, password, name, consent }),
-  login: (email: string, password: string) => request<Snapshot>('POST', '/auth/login', { email, password }),
-  logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
+  register: async (email: string, password: string, name: string, consent: boolean) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/register', { email, password, name, consent })),
+  login: async (email: string, password: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/login', { email, password })),
+  logout: async () => { try { return await request<{ ok: true }>('POST', '/auth/logout', {}); } finally { setToken(null); } },
   completeLesson: (id: string) => request<Snapshot>('POST', `/lessons/${id}/complete`, {}),
   setSongLearned: (id: string, learned: boolean) => request<Snapshot>('PUT', `/songs/${id}/learned`, { learned }),
   tick: (seconds: number, keepalive = false) => request<{ state: ProgressState }>('POST', '/practice/tick', { seconds }, keepalive),
@@ -89,7 +98,7 @@ export const api = {
   /** Скачивание защищено на сервере: нужен вход и Pro. Возвращает файл как Blob. */
   downloadScore: async (id: string): Promise<Blob> => {
     let res: Response;
-    try { res = await fetch(`${API_URL}/api/scores/${encodeURIComponent(id)}/download`, { credentials: API_URL ? 'include' : 'same-origin' }); }
+    try { res = await fetch(`${API_URL}/api/scores/${encodeURIComponent(id)}/download`, { credentials: API_URL ? 'include' : 'same-origin', headers: authHeaders() }); }
     catch { throw new ApiError(MSG_OFFLINE, 0); }
     if (!res.ok) {
       const data = await res.json().catch(() => null);
