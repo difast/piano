@@ -72,3 +72,10 @@ export const plural = (n: number, one: string, few: string, many: string) => {
   return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
 };
 export const daysWord = (n: number) => `${n} ${plural(n, 'день', 'дня', 'дней')}`;
+
+/** Бессрочный Pro хранится как дата окончания в далёком будущем. */
+export const isForever = (iso: string | null | undefined) => !!iso && iso >= '2900';
+/** Срок тарифа по числу дней (0 — навсегда). */
+export const planPeriod = (days: number) => (days === 0 ? 'навсегда' : days >= 365 ? 'год' : 'месяц');
+/** «до 8 октября 2026» или «навсегда» */
+export const proUntilText = (iso: string) => (isForever(iso) ? 'навсегда' : `до ${formatDate(iso)}`);

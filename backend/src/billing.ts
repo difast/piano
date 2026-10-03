@@ -34,7 +34,12 @@ const TAX_SYSTEM = process.env.YOOKASSA_TAX_SYSTEM ? Number(process.env.YOOKASSA
 const DEFS = [
   { id: 'pro-month', title: 'Pro на месяц', days: 30, env: 'PRO_MONTH_PRICE' },
   { id: 'pro-year', title: 'Pro на год', days: 365, env: 'PRO_YEAR_PRICE' },
+  { id: 'pro-forever', title: 'Pro навсегда', days: 0, env: 'PRO_FOREVER_PRICE' },   // days = 0 — бессрочно
 ] as const;
+
+/** Дата окончания для бессрочного Pro (сравнивается как обычная дата). */
+export const FOREVER = '2999-12-31T00:00:00.000Z';
+export const isForever = (iso: string | null | undefined) => !!iso && iso >= '2900';
 
 function parsePrice(v?: string): string | null {
   if (!v) return null;
@@ -50,7 +55,7 @@ export function billingInfo() {
   if (!SHOP) missing.push('YOOKASSA_SHOP_ID');
   if (!KEY) missing.push('YOOKASSA_SECRET_KEY');
   if (!FRONTEND) missing.push('FRONTEND_URL');
-  if (!plans.length) missing.push('PRO_MONTH_PRICE или PRO_YEAR_PRICE');
+  if (!plans.length) missing.push('PRO_MONTH_PRICE, PRO_YEAR_PRICE или PRO_FOREVER_PRICE');
   return { enabled: missing.length === 0, plans, missing };
 }
 
@@ -83,15 +88,22 @@ const order = (id: string) => db.get<OrderRow>('SELECT * FROM payments WHERE id 
 const orderByYk = (ykId: string) => db.get<OrderRow>('SELECT * FROM payments WHERE yk_id = ?', ykId);
 
 /** Создаёт платёж и возвращает ссылку на оплату. */
-export async function createCheckout(user: { id: number; email: string }, planId: string) {
+export async function createCheckout(user: { id: number; email: string; isPro: boolean; proUntil: string | null }, planId: string) {
   const info = billingInfo();
   if (!info.enabled) throw new BillingError(503, 'Оплата пока недоступна. Попробуйте позже.');
+  // при действующем Pro новую подписку купить нельзя
+  if (user.isPro) {
+    const until = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
+    throw new BillingError(409, isForever(until) ? 'У вас уже есть Pro навсегда.'
+      : until ? `У вас уже есть активная подписка Pro до ${new Date(until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' })}. Новую можно будет оформить после её окончания.`
+      : 'У вас уже есть активная подписка Pro.');
+  }
   const plan = info.plans.find((p) => p.id === planId);
   if (!plan) throw new BillingError(400, 'Неизвестный тариф');
 
   const id = randomUUID();
   await db.run('INSERT INTO payments (id, user_id, plan, days, amount) VALUES (?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price);
-  const item = `Подписка Pro: ${plan.title}`.slice(0, 128);
+  const item = (plan.days === 0 ? "Бессрочный доступ Pro" : `Подписка ${plan.title}`).slice(0, 128);
   const body = {
     amount: { value: plan.price, currency: 'RUB' },
     capture: true,
@@ -127,8 +139,9 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
       const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), o.id);
       if (done !== 1) return 'noop';    // уже обработан раньше
       const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
-      const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // продлеваем от конца текущей подписки
-      await t.run('UPDATE users SET pro_until = ? WHERE id = ?', new Date(base + o.days * 86_400_000).toISOString(), o.user_id);
+      const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // если вдруг остался срок (две вкладки) — не теряем его
+      const until = o.days === 0 || isForever(cur) ? FOREVER : new Date(base + o.days * 86_400_000).toISOString();
+      await t.run('UPDATE users SET pro_until = ? WHERE id = ?', until, o.user_id);
       await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));
       return 'activated' as const;
     });
@@ -146,7 +159,12 @@ async function applyRefund(o: OrderRow, r: YkRefund): Promise<boolean> {
     const done = await t.run("UPDATE payments SET status = 'refunded' WHERE id = ? AND status = 'succeeded'", o.id);
     if (done !== 1) return false;
     const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
-    if (cur) await t.run('UPDATE users SET pro_until = ? WHERE id = ?', new Date(Math.max(Date.now(), Date.parse(cur) - o.days * 86_400_000)).toISOString(), o.user_id);
+    if (cur) {
+      const left = o.days === 0 ? new Date().toISOString()                       // возврат «навсегда» — Pro заканчивается сейчас
+        : isForever(cur) ? cur                                                     // при бессрочном Pro возврат срочного заказа срок не меняет
+        : new Date(Math.max(Date.now(), Date.parse(cur) - o.days * 86_400_000)).toISOString();
+      await t.run('UPDATE users SET pro_until = ? WHERE id = ?', left, o.user_id);
+    }
     await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_refunded', JSON.stringify({ plan: o.plan, amount: o.amount }));
     return true;
   });

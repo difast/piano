@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { track } from '../services/analytics';
-import { daysLeft, daysWord, formatDate } from '../lib';
+import { daysLeft, daysWord, formatDate, isForever } from '../lib';
 
 const KEY = 'pro_notice_closed';
 const read = () => { try { return localStorage.getItem(KEY) ?? ''; } catch { return ''; } };
@@ -21,7 +21,7 @@ export function ProExpiryNotice() {
   const until = user?.proUntil ?? null;
   let stage: string | null = null;
   let kind: 'soon' | 'last' | 'ended' = 'soon';
-  if (user && until) {
+  if (user && until && !isForever(until)) {
     const left = daysLeft(until);
     const ended = Date.parse(until) <= Date.now();
     if (ended && !isPro && Date.now() - Date.parse(until) < 14 * 86_400_000) { stage = `ended`; kind = 'ended'; }
@@ -47,7 +47,7 @@ export function ProExpiryNotice() {
     : `Pro закончится через ${daysWord(left)}`;
   const text = kind === 'ended'
     ? `Срок истёк ${formatDate(until)}. Снова действует лимит 15 минут в день, скачивание нот недоступно. Прогресс сохранён.`
-    : `Подписка действует до ${formatDate(until)}. Продлите заранее — новый срок добавится к оставшемуся, ничего не потеряется.`;
+    : `Подписка действует до ${formatDate(until)}. После этого снова будет лимит 15 минут в день, а новую подписку можно будет оформить в профиле. Прогресс сохранится.`;
 
   return (
     <div className={`pro-notice ${kind}`} role="status" aria-live="polite">
@@ -56,8 +56,10 @@ export function ProExpiryNotice() {
         <b>{title}</b>
         <p>{text}</p>
         <div className="pro-notice-actions">
-          <Link className="btn primary small" to="/profile#plans" onClick={() => { track('pro_click', { place: `expiry_${kind}` }); close(); }}>{kind === 'ended' ? 'Вернуть Pro' : 'Продлить Pro'}</Link>
-          <button className="btn small" onClick={close}>Позже</button>
+          {kind === 'ended' ? <>
+            <Link className="btn primary small" to="/profile#plans" onClick={() => { track('pro_click', { place: 'expiry_ended' }); close(); }}>Вернуть Pro</Link>
+            <button className="btn small" onClick={close}>Позже</button>
+          </> : <button className="btn small" onClick={close}>Понятно</button>}
         </div>
       </div>
       <button className="pro-notice-x" aria-label="Закрыть" onClick={close}>×</button>

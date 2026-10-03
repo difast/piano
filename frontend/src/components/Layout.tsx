@@ -8,7 +8,7 @@ import { ProExpiryNotice } from './ProExpiryNotice';
 import { LimitModal } from './LimitModal';
 import { LegalLink } from './LegalLink';
 import { LEGAL_LINKS, OPERATOR } from '../data/legal';
-import { formatDate } from '../lib';
+import { proUntilText } from '../lib';
 
 const NAV = [
   { to: '/', label: 'Главная', icon: '🏠', end: true },
@@ -84,7 +84,7 @@ export function Layout() {
           {user ? (
             <>
               <div className="who"><b>{user.name || 'Без имени'}</b><span className="muted small">{user.email}</span>
-                <span className={`badge ${isPro ? 'pro' : ''}`}>{isPro ? (user.proUntil && Date.parse(user.proUntil) > Date.now() ? `Pro до ${formatDate(user.proUntil)}` : 'Pro') : 'Free'}</span></div>
+                <span className={`badge ${isPro ? 'pro' : ''}`}>{isPro ? (user.proUntil && Date.parse(user.proUntil) > Date.now() ? `Pro ${proUntilText(user.proUntil)}` : 'Pro') : 'Free'}</span></div>
               <button className="btn" onClick={async () => { await logout(); setOpen(false); nav('/'); }}>Выйти</button>
             </>
           ) : (

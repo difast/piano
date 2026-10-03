@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { useBilling } from '../hooks/useBilling';
-import { formatDate, formatPrice } from '../lib';
+import { formatDate, isForever } from '../lib';
+import { PlanCards } from '../components/PlanCards';
 import { track } from '../services/analytics';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Notice } from '../components/Status';
@@ -18,7 +19,7 @@ export default function Profile() {
   const billing = useBilling();
   const plansRef = useRef<HTMLDivElement>(null);
   const { hash } = useLocation();
-  // переход по ссылке «Продлить Pro» (#plans) — прокручиваем к тарифам, когда они загрузились
+  // переход по ссылке на тарифы (#plans) — прокручиваем к тарифам, когда они загрузились
   useEffect(() => { if (hash === '#plans' && billing) plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [hash, billing]);
   if (!user) return null;
 
@@ -36,29 +37,38 @@ export default function Profile() {
       <div className="card">
         <p><b>{user.name || 'Без имени'}</b><br /><span className="muted">{user.email}</span></p>
         <p>Тариф: <span className={`badge ${isPro ? 'pro' : ''}`}>{isPro ? 'Pro' : 'Free'}</span>
-          {isPro && user.proUntil && <span className="muted small"> · действует до {formatDate(user.proUntil)}</span>}
+          {isPro && user.proUntil && Date.parse(user.proUntil) > Date.now() && <span className="muted small"> · {isForever(user.proUntil) ? 'навсегда' : `действует до ${formatDate(user.proUntil)}`}</span>}
           {!isPro && <span className="muted small"> · {Math.floor(progress.limitSeconds / 60)} минут активных занятий в день</span>}</p>
         <button className="btn small" onClick={async () => { await logout(); nav('/'); }}>Выйти</button>
       </div>
       <div className="card" id="plans" ref={plansRef}>
-        <h3>{isPro ? 'Продлить Pro' : 'Pro — безлимитные занятия'}</h3>
-        {isPro && user.proUntil && <p className="muted small" style={{ marginTop: -6 }}>Новый срок добавится к текущему: подписка продлится после {formatDate(user.proUntil)}.</p>}
-        {!isPro && <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>}
-        {billing === null && <p className="muted small">Загрузка тарифов…</p>}
-        {billing && !billing.enabled && <p className="muted">Оплата скоро появится.</p>}
-        {billing?.enabled && (
+        {isPro ? (
           <>
-            <div className="plans">
-              {billing.plans.map((p) => (
-                <button key={p.id} className="btn primary" disabled={busy} onClick={() => buy(p.id)}>
-                  {p.title} — {formatPrice(p.price, p.currency)}
-                </button>
-              ))}
-            </div>
-            <p className="muted small" style={{ marginTop: 8 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Подписка не продлевается автоматически. Чек придёт на {user.email}.</p>
+            <h3>👑 Pro активен</h3>
+            <p style={{ margin: '0 0 6px' }}>
+              {user.proUntil && Date.parse(user.proUntil) > Date.now()
+                ? (isForever(user.proUntil) ? <>Бессрочный доступ — <b>навсегда</b>.</> : <>Подписка действует <b>до {formatDate(user.proUntil)}</b>.</>)
+                : 'Pro включён.'}
+            </p>
+            <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
+            {user.proUntil && !isForever(user.proUntil) && Date.parse(user.proUntil) > Date.now() &&
+              <p className="muted small" style={{ margin: 0 }}>Оформить новую подписку можно будет после окончания текущей — мы напомним заранее.</p>}
+          </>
+        ) : (
+          <>
+            <h3>Pro — безлимитные занятия</h3>
+            <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
+            {billing === null && <p className="muted small">Загрузка тарифов…</p>}
+            {billing && !billing.enabled && <p className="muted">Оплата скоро появится.</p>}
+            {billing?.enabled && (
+              <>
+                <PlanCards plans={billing.plans} busy={busy} onBuy={buy} />
+                <p className="muted small" style={{ marginTop: 10 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Автоматических списаний нет. Чек придёт на {user.email}.</p>
+              </>
+            )}
+            {msg && <Notice kind="error">{msg}</Notice>}
           </>
         )}
-        {msg && <Notice kind="error">{msg}</Notice>}
       </div>
       <div className="card install-tip">
         <h3>Установите как приложение</h3>

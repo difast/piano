@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api, type OrderStatus } from '../services/api';
 import { track } from '../services/analytics';
-import { formatDate } from '../lib';
+import { formatDate, isForever } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Spinner } from '../components/Status';
 
@@ -47,7 +47,7 @@ export default function PaymentReturn() {
         {view === 'wait' && <Spinner label="Проверяем оплату…" />}
         {view === 'ok' && <>
           <p><b>✅ Оплата прошла. Pro подключён!</b></p>
-          {info?.proUntil && <p>Pro действует до {formatDate(info.proUntil)}.</p>}
+          {info?.proUntil && <p>{isForever(info.proUntil) ? 'Pro подключён навсегда.' : `Pro действует до ${formatDate(info.proUntil)}.`}</p>}
           <p className="muted small">Чек придёт на вашу почту от ЮKassa.</p>
           <Link className="btn primary" to="/learn">Продолжить занятия</Link>
         </>}

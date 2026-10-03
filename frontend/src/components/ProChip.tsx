@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { daysLeft, daysWord, formatDate, formatDuration } from '../lib';
+import { daysLeft, daysWord, formatDate, formatDuration, isForever } from '../lib';
 
 /** Значок Pro в шапке: по нажатию — карточка со сроком подписки и временем занятий за сегодня. */
 export function ProChip() {
@@ -19,26 +19,29 @@ export function ProChip() {
   }, [open]);
   if (!user || !isPro) return null;
 
-  const until = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
+  const active = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
+  const forever = isForever(active);
+  const until = forever ? null : active;
   const left = until ? daysLeft(until) : null;
   const soon = left !== null && left <= 7;
 
   return (
     <div className="pro-chip-wrap" ref={box}>
       <button className={`pro-chip${soon ? ' soon' : ''}`} aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((v) => !v)}
-        title={until ? `Pro до ${formatDate(until)}` : 'Pro'}>
+        title={forever ? 'Pro навсегда' : until ? `Pro до ${formatDate(until)}` : 'Pro'}>
         <span aria-hidden>👑</span> Pro{soon && <small> · {left === 0 ? 'сегодня' : `${left} дн.`}</small>}
       </button>
       {open && (
         <div className="pro-pop" role="dialog" aria-label="Подписка Pro">
-          <div className="pro-pop-head"><span aria-hidden>👑</span><b>Pro активен</b></div>
+          <div className="pro-pop-head"><span aria-hidden>👑</span><b>{forever ? 'Pro навсегда' : 'Pro активен'}</b></div>
           <ul>
             <li><span>Занятия</span><b>без ограничений</b></li>
             <li><span>Сегодня занимался</span><b>{formatDuration(todaySeconds)}</b></li>
+            {forever && <li><span>Срок</span><b>навсегда</b></li>}
             {until && <li><span>Действует до</span><b>{formatDate(until)}</b></li>}
             {left !== null && <li><span>Осталось</span><b className={soon ? 'warn' : ''}>{left === 0 ? 'последний день' : daysWord(left)}</b></li>}
           </ul>
-          {until && <Link className={`btn ${soon ? 'primary' : ''} small`} to="/profile#plans">Продлить Pro</Link>}
+          {soon && <p className="pro-pop-note">После окончания вернётся лимит 15 минут в день. Новую подписку можно оформить в профиле, когда закончится текущая.</p>}
         </div>
       )}
     </div>
