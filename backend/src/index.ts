@@ -45,7 +45,7 @@ const api = express.Router();
 
 // мутации принимают только JSON — базовая защита от CSRF вместе с SameSite=Lax
 api.use((req, res, next) => {
-  if (req.method !== 'GET' && !req.is('application/json')) { res.status(415).json({ error: 'Ожидается JSON' }); return; }
+  if (req.method !== 'GET' && !req.is('application/json')) { res.status(415).json({ error: 'Не удалось выполнить действие. Обновите страницу и попробуйте ещё раз.' }); return; }
   next();
 });
 
@@ -205,7 +205,7 @@ api.post('/events', async (req, res) => {
   res.status(204).end();
 });
 
-api.use((_req, res) => { res.status(404).json({ error: 'Not found' }); });
+api.use((_req, res) => { res.status(404).json({ error: 'Не найдено' }); });
 app.use('/api', api);
 
 // Корень отвечает простым статусом (удобно для проверки состояния и чтобы не видеть 404 при открытии адреса бэка)
@@ -214,9 +214,9 @@ app.get('/', (_req, res) => { res.json({ status: 'ok', service: 'piano-backend' 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   const status = (err as { status?: number }).status;
-  if (status && status >= 400 && status < 500) { res.status(status).json({ error: 'Некорректный запрос' }); return; }
+  if (status && status >= 400 && status < 500) { res.status(status).json({ error: 'Не удалось выполнить действие. Обновите страницу и попробуйте ещё раз.' }); return; }
   console.error(err);
-  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  res.status(500).json({ error: 'Что-то пошло не так. Попробуйте ещё раз чуть позже.' });
 });
 
 const port = Number(process.env.PORT) || 3001;

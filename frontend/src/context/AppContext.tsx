@@ -85,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshExtra]);
 
   const apply = useCallback((s: Snapshot) => {
-    if (!s?.user) throw new Error('Сервер вернул некорректный ответ');
+    if (!s?.user) throw new Error('Сервис временно недоступен. Попробуйте через пару минут.');
     setUser(s.user); setProgress(normalizeState(s.state)); setDevTools(!!s.devTools);
   }, []);
 
