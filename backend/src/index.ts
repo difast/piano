@@ -5,6 +5,7 @@ import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
 import { createReadStream } from 'node:fs';
+import { BillingError, billingInfo, createCheckout, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -140,6 +141,34 @@ api.post('/dev/pro', requireUser, (req, res) => {
   res.json(snapshot(req));
 });
 
+// ---- Оплата Pro через ЮKassa ----
+api.get('/billing/plans', (req, res) => {
+  const info = billingInfo();
+  res.json({ enabled: info.enabled, plans: info.enabled ? info.plans : [], proUntil: req.user?.proUntil ?? null });
+});
+
+api.post('/billing/checkout', requireUser, async (req, res) => {
+  if (!rateLimit(`pay:${req.user!.id}`, 6, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
+  try { res.json(await createCheckout(req.user!, String(req.body?.plan ?? ''))); }
+  catch (e) { if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
+});
+
+api.get('/billing/orders/:id', requireUser, async (req, res) => {
+  try { res.json(await orderStatus(String(req.params.id), req.user!.id)); }
+  catch (e) { if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
+});
+
+// HTTP-уведомления ЮKassa (адрес указывается в личном кабинете: Интеграция → HTTP-уведомления)
+api.post('/billing/yookassa', async (req, res) => {
+  if (process.env.YOOKASSA_IP_CHECK === '1' && !isYooKassaIp(req.ip ?? '')) { res.status(403).json({ error: 'forbidden' }); return; }
+  try { const r = await processNotification(req.body); console.log('[billing] уведомление:', req.body?.event, '→', r); res.status(200).json({ ok: true }); }
+  catch (e) {
+    if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; }
+    console.error('[billing] ошибка обработки уведомления:', (e as Error).message);
+    res.status(500).json({ error: 'temporary' });   // ЮKassa повторит уведомление позже
+  }
+});
+
 // ---- Ноты. Каталог открыт всем, PDF отдаётся только вошедшему пользователю с активным Pro.
 api.get('/scores', (_req, res) => { res.json({ scores: loadScores().map(publicScore) }); });
 
@@ -180,9 +209,15 @@ app.get('/', (_req, res) => { res.json({ status: 'ok', service: 'piano-backend' 
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
+  const status = (err as { status?: number }).status;
+  if (status && status >= 400 && status < 500) { res.status(status).json({ error: 'Некорректный запрос' }); return; }
   console.error(err);
   res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 const port = Number(process.env.PORT) || 3001;
-app.listen(port, () => console.log(`Server: http://localhost:${port}`));
+app.listen(port, () => {
+  console.log(`Server: http://localhost:${port}`);
+  const b = billingInfo();
+  console.log(b.enabled ? `Оплата ЮKassa: включена (тарифов: ${b.plans.length})` : `Оплата ЮKassa: выключена — не заданы: ${b.missing.join(', ')}`);
+});
