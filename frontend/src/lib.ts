@@ -42,3 +42,12 @@ export const formatClock = (sec: number) => {
   const s = Math.max(0, Math.floor(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
+
+/** «5 000 ₽» из строки вида "5000.00" */
+export function formatPrice(v: string, currency = 'RUB'): string {
+  const n = Number(v);
+  const num = Number.isInteger(n) ? n.toLocaleString('ru-RU') : n.toLocaleString('ru-RU', { minimumFractionDigits: 2 });
+  return `${num} ${currency === 'RUB' ? '₽' : currency}`;
+}
+
+export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });

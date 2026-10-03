@@ -6,7 +6,7 @@
 export const FREE_DAILY_LIMIT_SEC = 15 * 60;
 
 /** Версия юридических документов — записывается вместе с согласием. Совпадает с frontend/src/data/legal.ts */
-export const LEGAL_VERSION = '2026-10-02';
+export const LEGAL_VERSION = '2026-10-03';
 
 export const LESSONS: { id: string; prerequisites: string[] }[] = Array.from({ length: 24 }, (_, i) => ({
   id: `l${i + 1}`,

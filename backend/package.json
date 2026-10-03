@@ -11,7 +11,8 @@
     "build": "tsc --noEmit",
     "start": "NODE_ENV=production tsx src/index.ts",
     "check:sync": "tsx scripts/check-content-sync.ts",
-    "add-score": "tsx scripts/add-score.ts"
+    "add-score": "tsx scripts/add-score.ts",
+    "check-deploy": "tsx scripts/check-deploy.ts"
   },
   "dependencies": {
     "express": "^5.2.1",

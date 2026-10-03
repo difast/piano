@@ -1,0 +1,71 @@
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import { api, type OrderStatus } from '../services/api';
+import { track } from '../services/analytics';
+import { formatDate } from '../lib';
+import { usePageMeta } from '../hooks/usePageMeta';
+import { Spinner } from '../components/Status';
+
+type View = 'wait' | 'ok' | 'canceled' | 'late' | 'error';
+
+/** Сюда ЮKassa возвращает покупателя. Статус берём с сервера (его обновляют уведомления ЮKassa и сверка по API). */
+export default function PaymentReturn() {
+  usePageMeta('Оплата', 'Статус оплаты подписки Pro.');
+  const [params] = useSearchParams();
+  const order = params.get('order') ?? '';
+  const { refresh } = useApp();
+  const [view, setView] = useState<View>('wait');
+  const [info, setInfo] = useState<OrderStatus | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (!order) { setView('error'); setErr('Не указан номер заказа.'); return; }
+    let stop = false;
+    let tries = 0;
+    const step = async () => {
+      if (stop) return;
+      try {
+        const o = await api.order(order);
+        if (stop) return;
+        setInfo(o);
+        if (o.status === 'succeeded') { setView('ok'); track('pay_success'); refresh(); return; }
+        if (o.status === 'canceled') { setView('canceled'); track('pay_canceled'); return; }
+        if (o.status === 'refunded') { setView('error'); setErr('Платёж был возвращён.'); return; }
+      } catch (e) { if (!stop) { setView('error'); setErr((e as Error).message); } return; }
+      if (++tries >= 20) { setView('late'); return; }   // ~1 минута
+      setTimeout(step, 3000);
+    };
+    step();
+    return () => { stop = true; };
+  }, [order, refresh]);
+
+  return (
+    <div className="page-narrow">
+      <h1>Оплата Pro</h1>
+      <div className="card">
+        {view === 'wait' && <Spinner label="Проверяем оплату…" />}
+        {view === 'ok' && <>
+          <p><b>✅ Оплата прошла. Pro подключён!</b></p>
+          {info?.proUntil && <p>Pro действует до {formatDate(info.proUntil)}.</p>}
+          <p className="muted small">Чек придёт на вашу почту от ЮKassa.</p>
+          <Link className="btn primary" to="/learn">Продолжить занятия</Link>
+        </>}
+        {view === 'canceled' && <>
+          <p><b>Оплата не прошла</b></p>
+          <p className="muted">Деньги не списаны. Можно попробовать ещё раз или выбрать другой способ оплаты.</p>
+          <Link className="btn primary" to="/profile">Вернуться к тарифам</Link>
+        </>}
+        {view === 'late' && <>
+          <p><b>Платёж ещё обрабатывается</b></p>
+          <p className="muted">Обычно это занимает меньше минуты. Pro подключится автоматически, как только банк подтвердит оплату — обновите страницу профиля чуть позже.</p>
+          <Link className="btn" to="/profile">В профиль</Link>
+        </>}
+        {view === 'error' && <>
+          <p><b>⚠️ {err || 'Не удалось проверить оплату'}</b></p>
+          <Link className="btn" to="/profile">В профиль</Link>
+        </>}
+      </div>
+    </div>
+  );
+}

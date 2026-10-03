@@ -13,6 +13,8 @@ interface AppState {
   status: Status;
   loadError: string;
   reload: () => void;
+  /** тихо обновляет пользователя и прогресс (без экрана загрузки) */
+  refresh: () => Promise<void>;
   user: User | null;
   progress: ProgressState;
   devTools: boolean;
@@ -95,6 +97,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch((e: Error) => { setLoadError(e.message); setStatus('error'); });
   }, [apply]);
   useEffect(() => { load(); }, [load]);
+  const refresh = useCallback(async () => {
+    try { const r = await api.me(); if (r.user) apply(r as Snapshot); } catch { /* оставляем прежние данные */ }
+  }, [apply]);
 
   // --- отправка накопленного времени ---
   const flush = useCallback((keepalive = false) => {
@@ -268,7 +273,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [accrue, flush]);
 
   const value = useMemo<AppState>(() => ({
-    status, loadError, reload: load, user, progress, devTools,
+    status, loadError, reload: load, refresh, user, progress, devTools,
     register: async (email, password, name, consent) => { apply(await api.register(email, password, name, consent)); track('signup'); },
     login: async (email, password) => { apply(await api.login(email, password)); track('login'); },
     logout, completeLesson, setSongLearned,
@@ -278,7 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     currentLessonId: currentLesson(progress.completedLessons)?.id ?? null,
     todaySeconds, remainingSeconds, history: historyLive, isPro, limitReached, clock, limitModal,
     closeLimitModal: () => setLimitModal(false),
-  }), [status, loadError, load, user, progress, devTools, apply, logout, completeLesson, setSongLearned, saveStage, setLearning, notifyHardDone, todaySeconds, remainingSeconds, historyLive, isPro, limitReached, clock, limitModal]);
+  }), [status, loadError, load, refresh, user, progress, devTools, apply, logout, completeLesson, setSongLearned, saveStage, setLearning, notifyHardDone, todaySeconds, remainingSeconds, historyLive, isPro, limitReached, clock, limitModal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

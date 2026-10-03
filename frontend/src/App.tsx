@@ -13,6 +13,7 @@ import SongDetail from './pages/SongDetail';
 import PianoPage from './pages/PianoPage';
 import ProgressPage from './pages/ProgressPage';
 import Profile from './pages/Profile';
+import PaymentReturn from './pages/PaymentReturn';
 import Scores from './pages/Scores';
 import ScoreDetail from './pages/ScoreDetail';
 import Auth from './pages/Auth';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="piano" element={guard(<PianoPage />)} />
             <Route path="progress" element={guard(<ProgressPage />)} />
             <Route path="profile" element={guard(<Profile />)} />
+            <Route path="payment/return" element={guard(<PaymentReturn />)} />
             <Route path="privacy" element={<Privacy />} />
             <Route path="terms" element={<Terms />} />
             <Route path="consent" element={<Consent />} />

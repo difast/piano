@@ -8,6 +8,8 @@ import { usePageMeta } from '../hooks/usePageMeta';
 import { track } from '../services/analytics';
 import { Piano } from '../components/Piano';
 import { Cover } from './Songs';
+import { useBilling } from '../hooks/useBilling';
+import { formatPrice } from '../lib';
 import { LegalLink } from '../components/LegalLink';
 
 const FAQ = [
@@ -37,6 +39,7 @@ const BENEFITS = [
 export default function Home() {
   usePageMeta('Пианино с нуля', 'Научись играть на пианино с нуля: пошаговые уроки и песни — на своём инструменте или на виртуальной клавиатуре в браузере. Бесплатно, 15 минут занятий в день.');
   const { user, currentLessonId, completedLessons } = useApp();
+  const billing = useBilling();
   useEffect(() => { track('home_view'); }, []);
   const started = completedLessons.length > 0;
   const to = !user ? '/register' : currentLessonId ? `/learn/${currentLessonId}` : '/learn';
@@ -151,16 +154,18 @@ export default function Home() {
             <Link className="btn primary" to={to} onClick={onCta('plans')}>{ctaLabel}</Link>
           </div>
           <div className="card plan">
-            <span className="badge pro">Скоро</span>
+            <span className="badge pro">Pro</span>
             <h3>Pro</h3>
-            <p className="price muted">Скоро</p>
+            <p className="price">{billing?.enabled ? billing.plans.map((p) => `${formatPrice(p.price, p.currency)} / ${p.days === 365 ? 'год' : 'месяц'}`).join(' · ') : <span className="muted">Скоро</span>}</p>
             <ul className="plan-list">
               <li>Всё из тарифа Free</li>
               <li>Занятия без ограничения по времени</li>
               <li>Скачивание PDF-нот</li>
               <li>Занимайтесь сколько хочется каждый день</li>
             </ul>
-            <button className="btn" disabled>Пока недоступно</button>
+            {billing?.enabled
+              ? <Link className="btn primary" to={user ? '/profile' : '/register'} onClick={onCta('pro')}>{user ? 'Подключить Pro' : 'Зарегистрироваться'}</Link>
+              : <button className="btn" disabled>Пока недоступно</button>}
           </div>
         </div>
       </section>

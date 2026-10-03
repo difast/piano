@@ -97,6 +97,7 @@ async function handle(path: string, body: Record<string, unknown>): Promise<Resp
     if (!me.isPro) return json(403, { error: 'Скачивание нот доступно на тарифе Pro', code: 'pro_required' });
     return json(404, { error: 'PDF для этого произведения пока не загружен (демо)' });
   }
+  if (path === '/billing/plans') return json(200, { enabled: false, plans: [], proUntil: null });
   if (path === '/dev/pro') return need((u) => { u.isPro = !!body.isPro; return json(200, snap(u)); });
   if (path === '/events') return json(204, null);
   return json(404, { error: 'Not found' });

@@ -1,4 +1,8 @@
-export interface User { id: number; email: string; name: string; isPro: boolean }
+export interface User { id: number; email: string; name: string; isPro: boolean; /** дата окончания оплаченной подписки (ISO) */ proUntil?: string | null }
+
+export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
+export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null }
+export interface OrderStatus { status: 'new' | 'pending' | 'succeeded' | 'canceled' | 'refunded'; plan: string; amount: string; proUntil: string | null }
 
 export interface ProgressState {
   completedLessons: string[];
@@ -89,5 +93,8 @@ export const api = {
     }
     return res.blob();
   },
+  billingPlans: () => request<BillingInfo>('GET', '/billing/plans'),
+  checkout: (plan: string) => request<{ orderId: string; url: string }>('POST', '/billing/checkout', { plan }),
+  order: (id: string) => request<OrderStatus>('GET', `/billing/orders/${encodeURIComponent(id)}`),
   event: (body: unknown) => request<null>('POST', '/events', body, true),
 };
