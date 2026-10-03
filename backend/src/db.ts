@@ -69,6 +69,25 @@ const NOW = `to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`;
 
 export const db = await connect();
 
+// Проверяем связь сразу и пишем в лог понятную причину (без пароля)
+try { await db.run('SELECT 1'); }
+catch (e) {
+  const err = e as Error & { code?: string };
+  let where = 'встроенная база';
+  try { const u = new URL(process.env.DATABASE_URL ?? ''); where = `${u.hostname}:${u.port || 5432}, база ${u.pathname.slice(1)}, пользователь ${u.username}`; } catch { /* нет адреса */ }
+  const msg = `${err.message} ${String((err as { cause?: Error }).cause?.message ?? '')}`;
+  const hint =
+    /timeout|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|terminated/i.test(msg) ? 'сервер базы недоступен по сети. Приватный IP (192.168.x.x) виден только из той же приватной сети; для приложения Timeweb Apps используйте публичный IP базы. Если адрес верный — попробуйте DATABASE_SSL=no-verify.'
+    : /ECONNREFUSED/.test(msg) ? 'по этому адресу и порту база не принимает подключения — проверьте хост и порт.'
+    : /ENOTFOUND|EAI_AGAIN/.test(msg) ? 'хост не найден — проверьте адрес в DATABASE_URL.'
+    : /password|28P01/i.test(msg) || err.code === '28P01' ? 'неверный пользователь или пароль.'
+    : /does not exist|3D000/.test(msg) || err.code === '3D000' ? 'нет базы с таким именем.'
+    : /ssl|certificate|pg_hba/i.test(msg) ? 'проблема с SSL — добавьте DATABASE_SSL=no-verify (или require).'
+    : 'см. текст ошибки выше.';
+  console.error(`\n[db] НЕТ СВЯЗИ С БАЗОЙ (${where}): ${err.message}\n[db] Причина: ${hint}\n`);
+  process.exit(1);
+}
+
 await db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
