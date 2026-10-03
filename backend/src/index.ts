@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { db } from './db.ts';
-import { COOKIE, createSession, destroySession, hashPassword, loadUser, rateLimit, readCookie, requireUser, verifyPassword } from './auth.ts';
+import { COOKIE, toAuthUser, createSession, destroySession, hashPassword, loadUser, rateLimit, readCookie, requireUser, verifyPassword } from './auth.ts';
 import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
@@ -48,7 +48,7 @@ api.use((req, res, next) => {
   next();
 });
 
-const publicUser = (u: { id: number; email: string; name: string; isPro: boolean }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro });
+const publicUser = (u: { id: number; email: string; name: string; isPro: boolean; proUntil: string | null }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro, proUntil: u.proUntil });
 const snapshot = (req: Request) => ({ user: publicUser(req.user!), state: getState(req.user!.id, req.user!.isPro), devTools: DEV_TOOLS });
 
 function setSessionCookie(req: Request, res: Response, userId: number) {
@@ -71,19 +71,19 @@ api.post('/auth/register', async (req, res) => {
   const info = db.prepare("INSERT INTO users (email, name, password_hash, consent_at, consent_version) VALUES (?, ?, ?, datetime('now'), ?)").run(email, name, await hashPassword(password), LEGAL_VERSION);
   const id = Number(info.lastInsertRowid);
   setSessionCookie(req, res, id);
-  req.user = { id, email, name, isPro: false };
+  req.user = { id, email, name, isPro: false, proUntil: null };
   res.status(201).json(snapshot(req));
 });
 
 api.post('/auth/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!rateLimit(`login:${req.ip}:${email}`)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
-  const row = db.prepare('SELECT id, email, name, is_pro AS isPro, password_hash AS hash FROM users WHERE email = ?').get(email) as
-    { id: number; email: string; name: string; isPro: number; hash: string } | undefined;
+  const row = db.prepare('SELECT id, email, name, is_pro AS isPro, pro_until AS proUntil, password_hash AS hash FROM users WHERE email = ?').get(email) as
+    { id: number; email: string; name: string; isPro: number; proUntil: string | null; hash: string } | undefined;
   const ok = row ? await verifyPassword(String(req.body?.password ?? ''), row.hash) : false;
   if (!row || !ok) { res.status(401).json({ error: 'Неверный email или пароль' }); return; }
   setSessionCookie(req, res, row.id);
-  req.user = { id: row.id, email: row.email, name: row.name, isPro: !!row.isPro };
+  req.user = toAuthUser(row);
   res.json(snapshot(req));
 });
 

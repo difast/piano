@@ -43,7 +43,13 @@ export function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export interface AuthUser { id: number; email: string; name: string; isPro: boolean }
+export interface AuthUser { id: number; email: string; name: string; isPro: boolean; /** срок подписки Pro (ISO) или null */ proUntil: string | null }
+
+/** Pro активен, если включён вручную (тесты) или срок подписки ещё не истёк. */
+export const toAuthUser = (r: { id: number; email: string; name: string; isPro: number; proUntil: string | null }): AuthUser => ({
+  id: r.id, email: r.email, name: r.name, proUntil: r.proUntil,
+  isPro: !!r.isPro || (!!r.proUntil && Date.parse(r.proUntil) > Date.now()),
+});
 declare module 'express-serve-static-core' { interface Request { user?: AuthUser } }
 
 /** Подставляет req.user, если есть валидная сессия. */
@@ -51,10 +57,10 @@ export function loadUser(req: Request, _res: Response, next: NextFunction) {
   const token = readCookie(req, COOKIE);
   if (token) {
     const row = db.prepare(
-      `SELECT u.id, u.email, u.name, u.is_pro AS isPro, s.expires_at AS exp
+      `SELECT u.id, u.email, u.name, u.is_pro AS isPro, u.pro_until AS proUntil, s.expires_at AS exp
        FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`,
-    ).get(sha(token)) as { id: number; email: string; name: string; isPro: number; exp: number } | undefined;
-    if (row && row.exp > Date.now()) req.user = { id: row.id, email: row.email, name: row.name, isPro: !!row.isPro };
+    ).get(sha(token)) as { id: number; email: string; name: string; isPro: number; proUntil: string | null; exp: number } | undefined;
+    if (row && row.exp > Date.now()) req.user = toAuthUser(row);
     else if (row) destroySession(token);
   }
   next();

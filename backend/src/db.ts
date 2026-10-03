@@ -47,6 +47,20 @@ db.exec(`
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, lesson_id)
   );
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,                       -- наш номер заказа
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan TEXT NOT NULL,
+    days INTEGER NOT NULL,
+    amount TEXT NOT NULL,                      -- например '299.00'
+    currency TEXT NOT NULL DEFAULT 'RUB',
+    status TEXT NOT NULL DEFAULT 'new',        -- new | pending | succeeded | canceled | refunded
+    yk_id TEXT UNIQUE,                         -- id платежа в ЮKassa
+    confirmation_url TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    paid_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
   CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -82,3 +96,6 @@ if (version < 1) {
     db.exec('COMMIT');
   } catch (e) { db.exec('ROLLBACK'); throw e; }
 }
+
+// Миграция: срок действия подписки Pro (is_pro остаётся ручным флагом для тестов)
+if (!(db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).some((c) => c.name === 'pro_until')) db.exec('ALTER TABLE users ADD COLUMN pro_until TEXT');
