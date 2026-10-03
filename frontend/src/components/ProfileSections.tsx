@@ -129,9 +129,12 @@ export function HelpCard() {
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const close = () => { setModal(null); setError(''); setDone(''); };
+  // ссылка-приглашение загружается заранее: «Поделиться» на телефоне должно открываться сразу по нажатию
+  const [refCode, setRefCode] = useState('');
+  useEffect(() => { api.referral().then((r) => setRefCode(r.code)).catch(() => undefined); }, []);
 
   const share = async () => {
-    const url = window.location.origin;
+    const url = refCode ? `${window.location.origin}/?ref=${refCode}` : window.location.origin;
     const data = { title: 'Пианино с нуля', text: 'Учусь играть на пианино с нуля — попробуй тоже, начать можно бесплатно:', url };
     track('share_click');
     try {

@@ -189,4 +189,26 @@ await db.run(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NO
 await db.run('ALTER TABLE payments ALTER COLUMN user_id DROP NOT NULL');
 await db.run('ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_user_id_fkey');
 await db.run('ALTER TABLE payments ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL');
+// ---- кубки, челленджи, приглашения ----
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code TEXT UNIQUE');
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER');
+await db.run(`CREATE TABLE IF NOT EXISTS visits (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    day TEXT NOT NULL,
+    PRIMARY KEY (user_id, day)
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS user_achievements (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    unlocked_at TEXT NOT NULL DEFAULT ${NOW},
+    seen BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (user_id, id)
+  )`);
+await db.run(`CREATE TABLE IF NOT EXISTS challenge_done (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id TEXT NOT NULL,
+    period TEXT NOT NULL,                        -- день или понедельник недели
+    done_at TEXT NOT NULL DEFAULT ${NOW},
+    PRIMARY KEY (user_id, id, period)
+  )`);
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

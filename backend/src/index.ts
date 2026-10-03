@@ -7,6 +7,8 @@ import { loadScores, pdfPath, publicScore } from './scores.ts';
 import { createReadStream } from 'node:fs';
 import { AccountError, confirmEmail, deleteAccount, getSettings, redeemCoupon, requestReset, resetPassword, saveSettings, sendVerification } from './account.ts';
 import { mailEnabled, mails, sendMail, SUPPORT_EMAIL, verifyMail } from './mail.ts';
+import { achievementsFor, attachReferral, markSeen, recordVisit, referralCode } from './achievements.ts';
+import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
 
@@ -83,6 +85,7 @@ api.post('/auth/register', async (req, res) => {
   }
   const token = await setSessionCookie(req, res, id);
   req.user = { id, email, name, isPro: false, proUntil: null, emailVerified: false };
+  await attachReferral(id, req.body?.ref);
   // письмо с подтверждением — в фоне, регистрация от него не зависит
   sendVerification(id, email).catch((e) => console.error('[mail] подтверждение:', (e as Error).message));
   res.status(201).json({ ...(await snapshot(req)), token });
@@ -107,7 +110,21 @@ api.post('/auth/logout', async (req, res) => {
 });
 
 // 200 и для гостя — чтобы в консоли не было 401
-api.get('/me', async (req, res) => res.json(req.user ? await snapshot(req) : { user: null }));
+api.get('/me', async (req, res) => {
+  if (req.user) await recordVisit(req.user.id);   // заходы по дням — для серии и кубков
+  res.json(req.user ? await snapshot(req) : { user: null });
+});
+
+// ---- Кубки, челленджи, приглашения ----
+api.get('/achievements', requireUser, async (req, res) => { res.json(await achievementsFor(req.user!.id)); });
+api.post('/achievements/seen', requireUser, async (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? (req.body.ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length < 40).slice(0, 50) : [];
+  await markSeen(req.user!.id, ids); res.json({ ok: true });
+});
+api.get('/referral', requireUser, async (req, res) => {
+  const code = await referralCode(req.user!.id);
+  res.json({ code, link: `${FRONTEND || ''}/?ref=${code}` });
+});
 
 api.post('/lessons/:id/complete', requireUser, async (req, res) => {
   const lesson = LESSONS.find((l) => l.id === String(req.params.id));

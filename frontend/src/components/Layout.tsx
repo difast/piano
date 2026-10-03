@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { TimerBar } from './TimerBar';
 import { ProChip } from './ProChip';
 import { VerifyBanner } from './VerifyBanner';
+import { AchievementWatcher } from './Achievements';
 import { ProExpiryNotice } from './ProExpiryNotice';
 import { LimitModal } from './LimitModal';
 import { LegalLink } from './LegalLink';
@@ -102,6 +103,7 @@ export function Layout() {
       <main className="container"><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></main>
       <LimitModal />
       <ProExpiryNotice />
+      <AchievementWatcher />
       <footer className="footer container muted small">
         <p>© Пианино с нуля · Бесплатные занятия до 15 минут в день</p>
         <p>{LEGAL_LINKS.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<LegalLink to={l.to}>{l.label}</LegalLink></span>)}</p>

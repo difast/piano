@@ -1,6 +1,10 @@
 export interface User { id: number; email: string; name: string; isPro: boolean; /** дата окончания оплаченной подписки (ISO) */ proUntil?: string | null; /** почта подтверждена */ emailVerified?: boolean }
 
 export interface NotifySettings { emailNews: boolean; browserNotify: boolean; remind: boolean; remindTime: string; songOfDay: boolean }
+export interface Milestone { id: string; at: number; title: string; desc: string; unlocked: boolean; unlockedAt: string | null; isNew: boolean }
+export interface AchTrack { id: string; title: string; icon: string; unit: string; current: number; best: number; max: number; milestones: Milestone[] }
+export interface Challenge { id: string; kind: 'day' | 'week'; title: string; desc: string; icon: string; target: number; unit: string; current: number; done: boolean; endsAt: string }
+export interface Achievements { tracks: AchTrack[]; challenges: Challenge[]; total: number; unlocked: number; referral: { code: string; link: string; friends: number } }
 export interface SettingsInfo { settings: NotifySettings; emailVerified: boolean; mailEnabled: boolean; pushKey: string; songOfDay: { id: string; title: string; artist: string } }
 
 export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
@@ -88,11 +92,23 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   return data as T;
 }
 
+// Код приглашения из ссылки ?ref=… — запоминаем на 30 дней и передаём при регистрации
+const REF_KEY = 'piano_ref';
+export function captureRef() {
+  try {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (ref && /^[a-z0-9]{4,12}$/.test(ref)) localStorage.setItem(REF_KEY, JSON.stringify({ ref, at: Date.now() }));
+  } catch { /* хранилище недоступно */ }
+}
+function readRef(): string | undefined {
+  try { const v = JSON.parse(localStorage.getItem(REF_KEY) ?? 'null') as { ref: string; at: number } | null; return v && Date.now() - v.at < 30 * 86_400_000 ? v.ref : undefined; } catch { return undefined; }
+}
+
 const withToken = ({ token, ...snap }: Snapshot & { token?: string }): Snapshot => { if (token) setToken(token); return snap; };
 
 export const api = {
   me: () => request<Snapshot | { user: null }>('GET', '/me'),
-  register: async (email: string, password: string, name: string, consent: boolean) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/register', { email, password, name, consent })),
+  register: async (email: string, password: string, name: string, consent: boolean) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/register', { email, password, name, consent, ref: readRef() })),
   login: async (email: string, password: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/login', { email, password })),
   logout: async () => { try { return await request<{ ok: true }>('POST', '/auth/logout', {}); } finally { setToken(null); } },
   completeLesson: (id: string) => request<Snapshot>('POST', `/lessons/${id}/complete`, {}),
@@ -132,5 +148,8 @@ export const api = {
   // поддержка и купоны
   support: (message: string, email?: string) => request<{ ok: true }>('POST', '/support', { message, email }),
   redeemCoupon: (code: string) => request<{ ok: true; proUntil: string; days: number }>('POST', '/coupons/redeem', { code }),
+  achievements: () => request<Achievements>('GET', '/achievements'),
+  achievementsSeen: (ids: string[]) => request<{ ok: true }>('POST', '/achievements/seen', { ids }),
+  referral: () => request<{ code: string; link: string }>('GET', '/referral'),
   event: (body: unknown) => request<null>('POST', '/events', body, true),
 };

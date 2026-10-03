@@ -4,6 +4,7 @@ import { SONGS } from '../data/songs';
 import { useApp } from '../context/AppContext';
 import { daysWord, formatDuration, formatTime, levelFor, plural, shiftDay, weekdayShort } from '../lib';
 import { ProLock } from '../components/ProLock';
+import { AchievementsBoard } from '../components/Achievements';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Empty } from '../components/Status';
 
@@ -11,7 +12,7 @@ const dayLabel = (day: string, today: string) =>
   day === today ? 'Сегодня' : day === shiftDay(today, -1) ? 'Вчера' : `${weekdayShort(day)}, ${day.slice(8)}.${day.slice(5, 7)}`;
 
 export default function ProgressPage() {
-  usePageMeta('Прогресс', 'Ваш уровень, пройденные уроки, выученные песни и статистика занятий за неделю.');
+  usePageMeta('Прогресс', 'Ваш уровень, кубки, челленджи, пройденные уроки и выученные песни.');
   const { completedLessons, learnedSongs, todaySeconds, isPro, currentLessonId, progress, history } = useApp();
   const done = completedLessons.length;
   const pct = Math.round((done / LESSONS.length) * 100);
@@ -41,6 +42,8 @@ export default function ProgressPage() {
         <div className="card stat"><span className="muted small">Занимался сегодня</span><b>{formatTime(todaySeconds)}</b>
           <span className="muted small">{isPro ? 'Pro — без лимита' : `лимит ${formatTime(progress.limitSeconds)}`}</span></div>
       </div>
+
+      <AchievementsBoard />
 
       {isPro ? (
         <>

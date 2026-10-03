@@ -242,6 +242,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const snap = await api.completeLesson(id);
     apply(snap);
     track('lesson_complete', { lessonId: id });
+    window.dispatchEvent(new Event('achievements:check'));
     const count = normalizeState(snap.state).completedLessons.length;
     if (count <= before) return;
     lessonsThisSession.current += 1;
@@ -261,6 +262,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setSongLearned = useCallback(async (id: string, learned: boolean) => {
     const first = progressRef.current.learnedSongs.length === 0;
     apply(await api.setSongLearned(id, learned));
+    window.dispatchEvent(new Event('achievements:check'));
     if (learned) {
       track('song_learned', { songId: id });
       toast(first ? 'Первая песня выучена!' : 'Ещё одна песня в копилке. Так держать!', 'success');
