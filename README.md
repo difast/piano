@@ -18,7 +18,7 @@ cd frontend && npm install && npm run dev     # сайт на :5173 (запро�
 ## Frontend (статическое приложение)
 - Директория проекта: `frontend`
 - Установка: `npm ci --include=dev` · Сборка: `npm run build` · Публикуемая папка: `dist`
-- Адрес бэкенда задаётся в файле **`frontend/public/config.js`** (`apiUrl: 'https://api.example.ru'`, без слеша) — это работает без переменных сборки. Запасной вариант: переменная сборки `VITE_API_URL`.
+- Адрес бэкенда задаётся в файле **`frontend/public/config.js`** (сейчас `apiUrl: 'https://api.piano-lab.ru'`, без слеша) — это работает без переменных сборки. Запасной вариант: переменная сборки `VITE_API_URL`.
 - Переменная сборки `VITE_SITE_URL` — адрес сайта для Open Graph (необязательна).
 - Нужен SPA-fallback: любой путь должен отдавать `index.html`.
 - `npm run build:preview` — автономный демо-файл `piano-preview.html` (без сервера).
@@ -91,7 +91,7 @@ Pro на срок (месяц 30 дн. / год 365 дн.) или навсегд
 **Проверка развёртывания** (запускать на своём компьютере, где открыты оба сайта):
 
 ```bash
-cd backend && npm run check-deploy -- https://<бэкенд> https://<фронтенд> --register
+cd backend && npm run check-deploy -- https://api.piano-lab.ru https://piano-lab.ru --register
 ```
 
 ## Ноты (PDF): как добавлять

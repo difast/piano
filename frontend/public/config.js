@@ -1,4 +1,4 @@
 // Настройки, которые можно менять без пересборки приложения.
 // apiUrl — адрес бэкенда (например 'https://api.ваш-домен.ru', без слеша на конце).
 // Пустая строка — запросы идут на тот же домен, где открыт сайт.
-window.__APP_CONFIG__ = { apiUrl: 'https://difast-piano-ceee.twc1.net' };
+window.__APP_CONFIG__ = { apiUrl: 'https://api.piano-lab.ru' };
