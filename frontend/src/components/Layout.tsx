@@ -57,7 +57,7 @@ export function Layout() {
     <>
       <header className="topbar">
         <div className="container topbar-inner">
-          <Link to="/" className="logo">🎹 <span>Пианино</span></Link>
+          <Link to="/" className="logo">🎹 <span>Piano Lab</span></Link>
           <nav className="nav-desktop" aria-label="Основная навигация">
             {NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
           </nav>
@@ -74,7 +74,7 @@ export function Layout() {
       <div className={`drawer-backdrop${open ? ' open' : ''}`} onClick={() => setOpen(false)} aria-hidden="true" />
       <aside id="side-menu" className={`drawer${open ? ' open' : ''}`} role="dialog" aria-modal="true" aria-label="Главное меню" aria-hidden={!open}>
         <div className="drawer-head">
-          <Link to="/" className="logo">🎹 <span>Пианино</span></Link>
+          <Link to="/" className="logo">🎹 <span>Piano Lab</span></Link>
           <button ref={closeBtn} className="drawer-close" aria-label="Закрыть меню" onClick={() => setOpen(false)}>✕</button>
         </div>
         <nav className="drawer-nav" aria-label="Меню">
@@ -105,7 +105,7 @@ export function Layout() {
       <ProExpiryNotice />
       <AchievementWatcher />
       <footer className="footer container muted small">
-        <p>© Пианино с нуля · Бесплатные занятия до 15 минут в день</p>
+        <p>© Piano Lab · piano-lab.ru · Бесплатные занятия до 15 минут в день</p>
         <p>{LEGAL_LINKS.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<LegalLink to={l.to}>{l.label}</LegalLink></span>)}</p>
         <p>{OPERATOR.name} · ОГРН {OPERATOR.ogrn} · ИНН {OPERATOR.inn} · КПП {OPERATOR.kpp}<br />{OPERATOR.address}</p>
       </footer>

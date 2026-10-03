@@ -4,8 +4,8 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (event) => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = { title: 'Пианино с нуля', body: event.data ? event.data.text() : '' }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'Пианино с нуля', {
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: 'Piano Lab', body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(data.title || 'Piano Lab', {
     body: data.body || '', icon: '/icon-192.png', badge: '/favicon-32.png', tag: data.tag, data: { url: data.url || '/' },
   }));
 });

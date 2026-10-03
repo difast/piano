@@ -132,6 +132,7 @@ export const api = {
   billingPlans: () => request<BillingInfo>('GET', '/billing/plans'),
   checkout: (plan: string) => request<{ orderId: string; url: string }>('POST', '/billing/checkout', { plan }),
   order: (id: string) => request<OrderStatus>('GET', `/billing/orders/${encodeURIComponent(id)}`),
+  resumePayment: async (order: string, r: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/billing/resume', { order, r })),
   // почта и пароль
   sendVerification: () => request<{ ok: true; already?: boolean }>('POST', '/auth/verify/send', {}),
   verifyEmail: (token: string) => request<{ ok: true }>('POST', '/auth/verify', { token }),

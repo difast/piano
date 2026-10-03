@@ -118,9 +118,9 @@ export function AchievementsBoard() {
   if (!data) return <section className="card"><h3>Кубки</h3><p className="muted small">Загрузка…</p></section>;
   const share = async () => {
     const url = `${window.location.origin}/?ref=${data.referral.code}`;
-    const text = 'Учусь играть на пианино с нуля — присоединяйся, начать можно бесплатно:';
+    const text = 'Учусь играть на пианино с нуля в Piano Lab — присоединяйся, начать можно бесплатно:';
     try {
-      if (navigator.share) { await navigator.share({ title: 'Пианино с нуля', text, url }); return; }
+      if (navigator.share) { await navigator.share({ title: 'Piano Lab', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`); toast('Ссылка-приглашение скопирована', 'success');
     } catch (e) { if ((e as Error).name !== 'AbortError') toast(`Ваша ссылка: ${url}`, 'info', 9000); }
   };

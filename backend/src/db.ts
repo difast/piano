@@ -189,6 +189,9 @@ await db.run(`CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NO
 await db.run('ALTER TABLE payments ALTER COLUMN user_id DROP NOT NULL');
 await db.run('ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_user_id_fkey');
 await db.run('ALTER TABLE payments ADD CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL');
+// одноразовый ключ возврата с оплаты: восстанавливает вход, если покупатель вернулся в другой браузер/приложение
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS resume_hash TEXT');
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS resume_used BOOLEAN NOT NULL DEFAULT FALSE');
 // ---- кубки, челленджи, приглашения ----
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code TEXT UNIQUE');
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER');

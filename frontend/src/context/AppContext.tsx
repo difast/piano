@@ -94,7 +94,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const sent = getToken();
     api.me().then((r) => {
       // гость: стираем ключ, только если это тот же ключ, с которым спрашивали (вход в другой вкладке не теряется)
-      if (r.user) apply(r as Snapshot); else { if (getToken() === sent) setToken(null); setUser(null); setProgress(EMPTY); }
+      if (r.user) apply(r as Snapshot);
+      else {
+        // был ключ входа, а сервер его не узнал — записываем для диагностики (почему «выбросило из аккаунта»)
+        if (sent) track('session_lost', { from: document.referrer ? new URL(document.referrer).hostname : '', standalone: window.matchMedia?.('(display-mode: standalone)').matches ?? false });
+        if (getToken() === sent) setToken(null); setUser(null); setProgress(EMPTY);
+      }
       setStatus('ready');
     }).catch((e: Error) => { setLoadError(e.message); setStatus('error'); });
   }, [apply]);

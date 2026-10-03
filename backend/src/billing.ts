@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 import { db } from './db.ts';
 
 /**
@@ -119,12 +120,13 @@ export async function createCheckout(user: { id: number; email: string; isPro: b
     }
   }
   const id = randomUUID();
-  await db.run('INSERT INTO payments (id, user_id, plan, days, amount) VALUES (?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price);
+  const resume = randomBytes(24).toString('base64url');
+  await db.run('INSERT INTO payments (id, user_id, plan, days, amount, resume_hash) VALUES (?, ?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price, sha(resume));
   const item = (plan.days === 0 ? "Бессрочный доступ Pro" : `Подписка ${plan.title}`).slice(0, 128);
   const body = {
     amount: { value: plan.price, currency: 'RUB' },
     capture: true,
-    confirmation: { type: 'redirect', return_url: `${FRONTEND}/payment/return?order=${id}` },
+    confirmation: { type: 'redirect', return_url: `${FRONTEND}/payment/return?order=${id}&r=${resume}` },
     description: `${item} (заказ ${id.slice(0, 8)})`.slice(0, 128),
     metadata: { order_id: id, user_id: String(user.id) },
     // чек по 54-ФЗ формирует ЮKassa («Чеки от ЮKassa»): нужны email покупателя и позиции с НДС
@@ -229,4 +231,20 @@ export function isYooKassaIp(raw: string): boolean {
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return false;
   if (EXACT.has(ip)) return true;
   return CIDRS.some(([base, bits]) => { const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0; return (ip4(ip) & mask) === (ip4(base) & mask); });
+}
+
+/**
+ * Возврат с оплаты в «чужой» браузер (банковское приложение открыло ссылку в Safari, сайт был открыт с экрана «Домой» и т. п.):
+ * одноразовый ключ из ссылки возврата восстанавливает вход. Действует 24 часа и один раз, только для своего заказа.
+ */
+export async function resumeAfterPayment(orderId: string, key: string): Promise<number> {
+  if (!orderId || !key || key.length > 64) throw new BillingError(400, 'Ссылка недействительна');
+  return db.tx(async (t) => {
+    const o = await t.get<{ user_id: number | null; resume_hash: string | null; resume_used: boolean; created_at: string }>(
+      'SELECT user_id, resume_hash, resume_used, created_at FROM payments WHERE id = ? FOR UPDATE', orderId);
+    const fresh = o && Date.now() - Date.parse(o.created_at) < 24 * 3600_000;
+    if (!o || !o.user_id || !o.resume_hash || o.resume_used || !fresh || o.resume_hash !== sha(key)) throw new BillingError(400, 'Войдите в аккаунт, чтобы увидеть статус оплаты');
+    await t.run('UPDATE payments SET resume_used = TRUE WHERE id = ?', orderId);
+    return o.user_id;
+  });
 }

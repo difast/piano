@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api, type OrderStatus } from '../services/api';
 import { track } from '../services/analytics';
@@ -14,12 +14,30 @@ export default function PaymentReturn() {
   usePageMeta('Оплата', 'Статус оплаты подписки Pro.');
   const [params] = useSearchParams();
   const order = params.get('order') ?? '';
-  const { refresh } = useApp();
+  const resumeKey = params.get('r') ?? '';
+  const { refresh, user, status } = useApp();
+  const loc = useLocation();
   const [view, setView] = useState<View>('wait');
+  // 'checking' — проверяем вход; 'need-login' — вход не восстановить, просим войти
+  const [auth, setAuth] = useState<'checking' | 'ok' | 'need-login'>('checking');
+
+  // Покупатель мог вернуться в другой браузер (банковское приложение, сайт с экрана «Домой»):
+  // одноразовый ключ из ссылки возврата восстанавливает вход.
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (user) { setAuth('ok'); return; }
+    if (!resumeKey || !order) { setAuth('need-login'); return; }
+    let off = false;
+    api.resumePayment(order, resumeKey)
+      .then(async () => { await refresh(); if (!off) { track('pay_resume'); setAuth('ok'); } })
+      .catch(() => { if (!off) setAuth('need-login'); });
+    return () => { off = true; };
+  }, [status, user, order, resumeKey, refresh]);
   const [info, setInfo] = useState<OrderStatus | null>(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
+    if (auth !== 'ok') return;
     if (!order) { setView('error'); setErr('Не указан номер заказа.'); return; }
     let stop = false;
     let tries = 0;
@@ -38,8 +56,21 @@ export default function PaymentReturn() {
     };
     step();
     return () => { stop = true; };
-  }, [order, refresh]);
+  }, [order, refresh, auth]);
 
+  if (auth === 'need-login') {
+    return (
+      <div className="page-narrow">
+        <h1>Оплата Pro</h1>
+        <div className="card">
+          <p><b>Войдите в аккаунт, чтобы увидеть статус оплаты</b></p>
+          <p className="muted">Если оплата прошла, Pro уже подключён к вашему аккаунту — он появится сразу после входа.</p>
+          <Link className="btn primary" to="/login" state={{ from: `${loc.pathname}?order=${order}` }}>Войти</Link>
+        </div>
+      </div>
+    );
+  }
+  if (auth === 'checking') return <div className="page-narrow"><h1>Оплата Pro</h1><div className="card"><Spinner label="Проверяем оплату…" /></div></div>;
   return (
     <div className="page-narrow">
       <h1>Оплата Pro</h1>

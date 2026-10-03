@@ -135,7 +135,7 @@ export function HelpCard() {
 
   const share = async () => {
     const url = refCode ? `${window.location.origin}/?ref=${refCode}` : window.location.origin;
-    const data = { title: 'Пианино с нуля', text: 'Учусь играть на пианино с нуля — попробуй тоже, начать можно бесплатно:', url };
+    const data = { title: 'Piano Lab', text: 'Учусь играть на пианино с нуля в Piano Lab — попробуй тоже, начать можно бесплатно:', url };
     track('share_click');
     try {
       if (navigator.share) { await navigator.share(data); return; }

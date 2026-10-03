@@ -60,7 +60,7 @@ export default function App() {
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="verify-email" element={<VerifyEmail />} />
-            <Route path="payment/return" element={guard(<PaymentReturn />)} />
+            <Route path="payment/return" element={<PaymentReturn />} />
             <Route path="privacy" element={<Privacy />} />
             <Route path="terms" element={<Terms />} />
             <Route path="consent" element={<Consent />} />

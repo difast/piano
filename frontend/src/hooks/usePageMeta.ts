@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const SITE = 'Пианино с нуля';
+const SITE = 'Piano Lab';
 
 function setMeta(selector: string, attr: 'name' | 'property', key: string, value: string) {
   let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -11,7 +11,7 @@ function setMeta(selector: string, attr: 'name' | 'property', key: string, value
 /** Title и description страницы (и Open Graph). */
 export function usePageMeta(title: string, description: string) {
   useEffect(() => {
-    const full = title === SITE ? title : `${title} — ${SITE}`;
+    const full = title.startsWith(SITE) ? title : `${title} — ${SITE}`;
     document.title = full;
     setMeta('meta[name="description"]', 'name', 'description', description);
     setMeta('meta[property="og:title"]', 'property', 'og:title', full);

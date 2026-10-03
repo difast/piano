@@ -10,7 +10,7 @@ import { mailEnabled, mails, sendMail, SUPPORT_EMAIL, verifyMail } from './mail.
 import { achievementsFor, attachReferral, markSeen, recordVisit, referralCode } from './achievements.ts';
 import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
-import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
+import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -309,6 +309,18 @@ api.post('/billing/checkout', requireUser, async (req, res) => {
   if (!rateLimit(`pay:${req.user!.id}`, 6, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
   try { res.json(await createCheckout(req.user!, String(req.body?.plan ?? ''))); }
   catch (e) { if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
+});
+
+api.post('/billing/resume', async (req, res) => {
+  if (!rateLimit(`resume:${req.ip}`, 10, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
+  try {
+    const userId = await resumeAfterPayment(String(req.body?.order ?? ''), String(req.body?.r ?? ''));
+    const row = (await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null }>(
+      'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt" FROM users WHERE id = ?', userId))!;
+    const token = await setSessionCookie(req, res, userId);
+    req.user = toAuthUser(row);
+    res.json({ ...(await snapshot(req)), token });
+  } catch (e) { if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
 });
 
 api.get('/billing/orders/:id', requireUser, async (req, res) => {

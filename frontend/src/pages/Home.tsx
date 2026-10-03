@@ -39,7 +39,7 @@ const BENEFITS = [
 ];
 
 export default function Home() {
-  usePageMeta('Пианино с нуля', 'Научись играть на пианино с нуля: пошаговые уроки и песни — на своём инструменте или на виртуальной клавиатуре в браузере. Бесплатно, 15 минут занятий в день.');
+  usePageMeta('Piano Lab — пианино с нуля', 'Научись играть на пианино с нуля: пошаговые уроки и песни — на своём инструменте или на виртуальной клавиатуре в браузере. Бесплатно, 15 минут занятий в день.');
   const { user, currentLessonId, completedLessons, isPro } = useApp();
   const billing = useBilling();
   const proList = (
