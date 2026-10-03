@@ -4,7 +4,7 @@ import { APP_TZ, FRONTEND } from './config.ts';
 import { SONGS_META } from './content.ts';
 import { todayKey } from './progress.ts';
 import { getSettings } from './account.ts';
-import { mailEnabled, mails, sendMail } from './mail.ts';
+import { mailEnabled, mails, sendMail, SUPPORT_EMAIL } from './mail.ts';
 
 // ---------- ключи VAPID для браузерных уведомлений ----------
 // Можно задать VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY; если не заданы — создаются один раз и хранятся в базе.
@@ -98,8 +98,41 @@ export async function notifyTick(now = new Date()) {
   return sent;
 }
 
+// ---------- письма об окончании Pro: за 3 дня и в день окончания (только днём, 10:00–20:00) ----------
+const DAY = 86_400_000;
+export async function proExpiryTick(now = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: APP_TZ, hour: '2-digit', hour12: false }).format(now));
+  if (hour < 10 || hour >= 20 || !mailEnabled()) return 0;
+  const t = now.getTime();
+  const iso = (ms: number) => new Date(ms).toISOString();
+  let sent = 0;
+  // скоро закончится (осталось ≤ 3 дней), бессрочные не трогаем
+  const soon = await db.all<{ id: number; email: string; pro_until: string }>(
+    `SELECT id, email, pro_until FROM users WHERE pro_until > ? AND pro_until <= ? AND pro_until < '2900'
+       AND COALESCE(pro_mail, '') NOT IN (pro_until || '|soon', pro_until || '|ended')`, iso(t), iso(t + 3 * DAY));
+  for (const u of soon) {
+    if ((await db.run("UPDATE users SET pro_mail = pro_until || '|soon' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;
+    try { await sendMail(u.email, 'Pro скоро закончится', mails.proEnding(u.pro_until), SUPPORT_EMAIL || undefined); sent++; }
+    catch (e) { console.error('[mail] скоро конец Pro:', (e as Error).message); }
+  }
+  // закончилась (за последние 3 дня — чтобы не писать давно ушедшим)
+  const ended = await db.all<{ id: number; email: string; pro_until: string }>(
+    `SELECT id, email, pro_until FROM users WHERE pro_until <= ? AND pro_until > ?
+       AND COALESCE(pro_mail, '') <> pro_until || '|ended'`, iso(t), iso(t - 3 * DAY));
+  for (const u of ended) {
+    if ((await db.run("UPDATE users SET pro_mail = pro_until || '|ended' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;
+    try { await sendMail(u.email, 'Подписка Pro закончилась', mails.proEnded(u.pro_until), SUPPORT_EMAIL || undefined); sent++; }
+    catch (e) { console.error('[mail] конец Pro:', (e as Error).message); }
+  }
+  return sent;
+}
+
 export function startScheduler() {
-  const run = () => { notifyTick().catch((e) => console.error('[notify]', (e as Error).message)); };
+  let n = 0;
+  const run = () => {
+    notifyTick().catch((e) => console.error('[notify]', (e as Error).message));
+    if (n++ % 10 === 0) proExpiryTick().catch((e) => console.error('[notify] Pro:', (e as Error).message));   // раз в 10 минут
+  };
   setTimeout(run, 5_000);
   return setInterval(run, 60_000);
 }

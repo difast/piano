@@ -107,6 +107,7 @@ export function Layout() {
       <footer className="footer container muted small">
         <p>© Piano Lab · piano-lab.ru · Бесплатные занятия до 15 минут в день</p>
         <p>{LEGAL_LINKS.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<LegalLink to={l.to}>{l.label}</LegalLink></span>)}</p>
+        <p>Связь: <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a> · {OPERATOR.hours}</p>
         <p>{OPERATOR.name} · ОГРН {OPERATOR.ogrn} · ИНН {OPERATOR.inn} · КПП {OPERATOR.kpp}<br />{OPERATOR.address}</p>
       </footer>
     </>

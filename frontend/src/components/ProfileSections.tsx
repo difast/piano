@@ -8,6 +8,7 @@ import { track } from '../services/analytics';
 import { formatDate, isForever } from '../lib';
 import { Modal } from './Modal';
 import { Notice } from './Status';
+import { OPERATOR } from '../data/legal';
 
 export function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: React.ReactNode; disabled?: boolean }) {
   return (
@@ -169,7 +170,7 @@ export function HelpCard() {
         <Modal title="Написать в поддержку" icon="💬" onClose={close}>
           {done ? <><Notice kind="success">{done}</Notice><button className="btn primary" onClick={close}>Готово</button></> : (
             <form className="form" onSubmit={sendSupport}>
-              <p className="muted small" style={{ margin: 0 }}>Опишите вопрос или проблему. Ответим на {user?.email}.</p>
+              <p className="muted small" style={{ margin: 0 }}>Опишите вопрос или проблему. Ответим на {user?.email}. Связь {OPERATOR.hours}; можно также написать на {OPERATOR.email}.</p>
               <textarea required minLength={10} maxLength={4000} rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Например: не приходит письмо, вопрос об оплате, предложение…" aria-label="Сообщение" />
               {error && <Notice kind="error">{error}</Notice>}
               <button className="btn primary" disabled={busy}>{busy ? 'Отправляем…' : 'Отправить'}</button>

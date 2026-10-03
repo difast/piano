@@ -192,6 +192,8 @@ await db.run('ALTER TABLE payments ADD CONSTRAINT payments_user_id_fkey FOREIGN 
 // одноразовый ключ возврата с оплаты: восстанавливает вход, если покупатель вернулся в другой браузер/приложение
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS resume_hash TEXT');
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS resume_used BOOLEAN NOT NULL DEFAULT FALSE');
+/** какие письма об окончании Pro уже отправлены: '<pro_until>|soon' / '<pro_until>|ended' */
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_mail TEXT');
 // ---- кубки, челленджи, приглашения ----
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS ref_code TEXT UNIQUE');
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER');
