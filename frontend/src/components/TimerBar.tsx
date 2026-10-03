@@ -7,16 +7,7 @@ const LABEL = { running: '▶ время идёт', idle: '⏸ пауза', off:
 export function TimerBar() {
   const { user, isPro, remainingSeconds, todaySeconds, progress, clock } = useApp();
   if (!user) return null;
-  if (isPro) {
-    return (
-      <div className="timerbar pro" role="timer" aria-label="Без ограничений">
-        <div className="container timerbar-inner">
-          <b>Без ограничений</b>
-          <span className="tb-sub">Сегодня занимался: {formatClock(todaySeconds)}</span>
-        </div>
-      </div>
-    );
-  }
+  if (isPro) return null;   // у Pro лимита нет — время занятий показывает значок Pro в шапке
   const pct = Math.min(100, (todaySeconds / progress.limitSeconds) * 100);
   const level = remainingSeconds <= 0 ? 'limit' : remainingSeconds <= 60 ? 'crit' : remainingSeconds <= 300 ? 'warn' : 'ok';
   return (

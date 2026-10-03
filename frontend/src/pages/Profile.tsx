@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { useBilling } from '../hooks/useBilling';
@@ -16,6 +16,10 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const billing = useBilling();
+  const plansRef = useRef<HTMLDivElement>(null);
+  const { hash } = useLocation();
+  // переход по ссылке «Продлить Pro» (#plans) — прокручиваем к тарифам, когда они загрузились
+  useEffect(() => { if (hash === '#plans' && billing) plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [hash, billing]);
   if (!user) return null;
 
   const buy = async (id: string) => {
@@ -36,8 +40,9 @@ export default function Profile() {
           {!isPro && <span className="muted small"> · {Math.floor(progress.limitSeconds / 60)} минут активных занятий в день</span>}</p>
         <button className="btn small" onClick={async () => { await logout(); nav('/'); }}>Выйти</button>
       </div>
-      <div className="card">
+      <div className="card" id="plans" ref={plansRef}>
         <h3>{isPro ? 'Продлить Pro' : 'Pro — безлимитные занятия'}</h3>
+        {isPro && user.proUntil && <p className="muted small" style={{ marginTop: -6 }}>Новый срок добавится к текущему: подписка продлится после {formatDate(user.proUntil)}.</p>}
         {!isPro && <ul className="plan-list" style={{ margin: '0 0 12px' }}><li>Занятия без ограничения по времени (в Free — 15 минут в день)</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>}
         {billing === null && <p className="muted small">Загрузка тарифов…</p>}
         {billing && !billing.enabled && <p className="muted">Оплата скоро появится.</p>}

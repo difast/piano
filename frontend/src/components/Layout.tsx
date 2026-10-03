@@ -3,9 +3,12 @@ import { NavLink, Outlet, Link, useLocation, useNavigate } from 'react-router-do
 import { ErrorBoundary } from './ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { TimerBar } from './TimerBar';
+import { ProChip } from './ProChip';
+import { ProExpiryNotice } from './ProExpiryNotice';
 import { LimitModal } from './LimitModal';
 import { LegalLink } from './LegalLink';
 import { LEGAL_LINKS, OPERATOR } from '../data/legal';
+import { formatDate } from '../lib';
 
 const NAV = [
   { to: '/', label: 'Главная', icon: '🏠', end: true },
@@ -57,6 +60,7 @@ export function Layout() {
             {NAV.map((n) => <NavLink key={n.to} to={n.to} end={n.end}>{n.label}</NavLink>)}
           </nav>
           <div className="topbar-right">
+            <ProChip />
             {!user && status === 'ready' && <Link to="/login" className="btn small login-btn">Войти</Link>}
             <button ref={burger} className="burger" aria-label="Открыть меню" aria-expanded={open} aria-controls="side-menu" onClick={() => setOpen(true)}>
               <span /><span /><span />
@@ -80,7 +84,7 @@ export function Layout() {
           {user ? (
             <>
               <div className="who"><b>{user.name || 'Без имени'}</b><span className="muted small">{user.email}</span>
-                <span className={`badge ${isPro ? 'pro' : ''}`}>{isPro ? 'Pro' : 'Free'}</span></div>
+                <span className={`badge ${isPro ? 'pro' : ''}`}>{isPro ? (user.proUntil && Date.parse(user.proUntil) > Date.now() ? `Pro до ${formatDate(user.proUntil)}` : 'Pro') : 'Free'}</span></div>
               <button className="btn" onClick={async () => { await logout(); setOpen(false); nav('/'); }}>Выйти</button>
             </>
           ) : (
@@ -95,6 +99,7 @@ export function Layout() {
       <TimerBar />
       <main className="container"><ErrorBoundary key={pathname}><Outlet /></ErrorBoundary></main>
       <LimitModal />
+      <ProExpiryNotice />
       <footer className="footer container muted small">
         <p>© Пианино с нуля · Бесплатные занятия до 15 минут в день</p>
         <p>{LEGAL_LINKS.map((l, i) => <span key={l.to}>{i > 0 && ' · '}<LegalLink to={l.to}>{l.label}</LegalLink></span>)}</p>

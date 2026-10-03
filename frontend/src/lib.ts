@@ -50,4 +50,25 @@ export function formatPrice(v: string, currency = 'RUB'): string {
   return `${num} ${currency === 'RUB' ? '₽' : currency}`;
 }
 
-export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/\s?г\.$/, '');
+
+/** «25 мин», «1 ч 05 мин», «40 сек» */
+export function formatDuration(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  if (s < 60) return `${s} сек`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} мин`;
+  return `${Math.floor(m / 60)} ч ${String(m % 60).padStart(2, '0')} мин`;
+}
+
+/** Сколько календарных дней осталось до даты по местному времени: 0 — заканчивается сегодня, 1 — завтра. */
+export const daysLeft = (iso: string, now = Date.now()) => {
+  const day = (t: number) => { const d = new Date(t); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); };
+  return Math.max(0, Math.round((day(Date.parse(iso)) - day(now)) / 86_400_000));
+};
+
+export const plural = (n: number, one: string, few: string, many: string) => {
+  const a = n % 10, b = n % 100;
+  return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many;
+};
+export const daysWord = (n: number) => `${n} ${plural(n, 'день', 'дня', 'дней')}`;
