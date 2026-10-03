@@ -37,7 +37,7 @@ export default function ScoreDetail() {
       <div className="page-narrow">
         <Link to="/scores" className="muted">← Все ноты</Link>
         {info && <div className="song-head">
-          <div className="cover" style={{ background: coverFor(info.id) }}><span>♪</span></div>
+          <div className="cover locked" style={{ background: coverFor(info.id) }}><span>♪</span><span className="cover-pro">🔒 PRO</span></div>
           <div><h1>{info.title}</h1><p className="muted">{info.composer}</p><span className={`badge lvl-${info.difficulty}`}>{DIFFICULTY_LABEL[info.difficulty]}</span></div>
         </div>}
         <ProLock title="Эти ноты доступны в Pro" place="score">

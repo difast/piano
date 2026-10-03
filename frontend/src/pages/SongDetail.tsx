@@ -46,7 +46,7 @@ export default function SongDetail() {
     <div className="page-narrow">
       <Link to="/songs" className="muted">← Все песни</Link>
       <div className="song-head">
-        <Cover cover={song.cover} coverUrl={song.coverUrl} title={song.title} />
+        <Cover cover={song.cover} coverUrl={song.coverUrl} title={song.title} locked={locked} />
         <div>
           <h1>{song.title}</h1>
           <p className="muted">{song.artist}</p>

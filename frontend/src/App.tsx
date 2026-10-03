@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PREVIEW } from './env';
 import { AppProvider } from './context/AppContext';
+import { UpsellProvider } from './context/UpsellContext';
 import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './components/RequireAuth';
@@ -39,6 +40,7 @@ export default function App() {
     <ToastProvider>
     <AppProvider>
       <Router>
+        <UpsellProvider>
         <ScrollToTop />
         <Routes>
           <Route element={<Layout />}>
@@ -61,6 +63,7 @@ export default function App() {
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>
+        </UpsellProvider>
       </Router>
     </AppProvider>
     </ToastProvider>

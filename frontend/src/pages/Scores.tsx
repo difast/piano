@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DIFFICULTY_LABEL, type Difficulty } from '../data/types';
-import { normalize } from '../lib';
+import { normalize, plural } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { coverFor, useScores } from '../hooks/useScores';
 import { Empty, ErrorBox, Spinner } from '../components/Status';
 import { useApp } from '../context/AppContext';
+import { useUpsell } from '../context/UpsellContext';
 
 const ORDER: Record<Difficulty, number> = { beginner: 0, intermediate: 1, advanced: 2 };
 type Sort = 'title' | 'easy' | 'hard' | 'composer';
@@ -14,6 +15,7 @@ export default function Scores() {
   usePageMeta('Ноты', 'Библиотека нот для фортепиано: поиск по названию и композитору, фильтры по сложности и жанру. Скачивание PDF — на тарифе Pro.');
   const { scores, error, reload } = useScores();
   const { isPro } = useApp();
+  const { offerPro } = useUpsell();
   const freeCount = (scores ?? []).filter((s) => s.free).length;
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<Difficulty | 'all'>('all');
@@ -26,12 +28,13 @@ export default function Scores() {
     const l = (scores ?? []).filter((s) =>
       (level === 'all' || s.difficulty === level) && (genre === 'all' || s.genre === genre)
       && (!q || normalize(`${s.title} ${s.composer} ${s.genre}`).includes(q)));
-    return l.sort((a, b) =>
+    const freeFirst = (a: { free?: boolean }, b: { free?: boolean }) => (isPro ? 0 : Number(!a.free) - Number(!b.free));
+    return l.sort((a, b) => freeFirst(a, b) || (
       sort === 'easy' ? ORDER[a.difficulty] - ORDER[b.difficulty] || a.title.localeCompare(b.title, 'ru')
       : sort === 'hard' ? ORDER[b.difficulty] - ORDER[a.difficulty] || a.title.localeCompare(b.title, 'ru')
       : sort === 'composer' ? a.composer.localeCompare(b.composer, 'ru') || a.title.localeCompare(b.title, 'ru')
-      : a.title.localeCompare(b.title, 'ru'));
-  }, [scores, query, level, genre, sort]);
+      : a.title.localeCompare(b.title, 'ru')));
+  }, [scores, query, level, genre, sort, isPro]);
 
   const reset = () => { setQuery(''); setLevel('all'); setGenre('all'); };
 
@@ -63,16 +66,17 @@ export default function Scores() {
           ) : (
             <div className="song-grid">
               {list.map((s) => (
-                <Link key={s.id} to={`/scores/${s.id}`} className={`song-card card${!isPro && !s.free ? ' locked' : ''}`}>
-                  <div className="cover" style={{ background: coverFor(s.id) }}><span>♪</span></div>
+                <Link key={s.id} to={`/scores/${s.id}`} className={`song-card card${!isPro && !s.free ? ' locked' : ''}`}
+                  onClick={(e) => { if (!isPro && !s.free) { e.preventDefault(); offerPro({ title: `«${s.title}» — в Pro`, text: `На Free для просмотра открыто ${freeCount} ${plural(freeCount, 'нотный лист', 'нотных листа', 'нотных листов')}. С Pro — все ноты и скачивание PDF.`, place: 'score_card' }); } }}>
+                  <div className={`cover${!isPro && !s.free ? ' locked' : ''}`} style={{ background: coverFor(s.id) }}><span>♪</span>{!isPro && !s.free && <span className="cover-pro" aria-label="Доступно в Pro">🔒 PRO</span>}</div>
                   <b className="song-title">{s.title}</b>
                   <span className="muted small">{s.composer}</span>
                   <p className="muted small clamp3">{s.description}</p>
                   <div className="row">
                     <span className={`badge lvl-${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span>
                     {s.genre && <span className="badge">{s.genre}</span>}
-                    {!isPro && !s.free ? <span className="badge pro">🔒 Pro</span>
-                      : <span className={`badge ${s.hasPdf ? 'ok' : ''}`}>{s.hasPdf ? '📄 PDF' : 'PDF скоро'}</span>}
+                    {!isPro && s.free && <span className="badge ok">Бесплатно</span>}
+                    <span className={`badge ${s.hasPdf ? 'ok' : ''}`}>{s.hasPdf ? '📄 PDF' : 'PDF скоро'}</span>
                   </div>
                 </Link>
               ))}

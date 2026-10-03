@@ -4,12 +4,14 @@ import { useApp } from '../context/AppContext';
 import { api, type Score } from '../services/api';
 import { track } from '../services/analytics';
 import { Notice } from './Status';
+import { useUpsell } from '../context/UpsellContext';
 
 /** Кнопка скачивания PDF. Сервер проверяет вход и Pro сам — здесь только отображение и запрос. */
 export function ScoreDownload({ score }: { score: Score }) {
   const { user, isPro } = useApp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const { offerPro } = useUpsell();
 
   if (!score.hasPdf) return <p className="muted">PDF для этого произведения скоро появится.</p>;
 
@@ -34,7 +36,7 @@ export function ScoreDownload({ score }: { score: Score }) {
       <div className="pro-lock">
         <span className="badge pro">🔒 Доступно в Pro</span>
         <p className="muted small" style={{ margin: '6px 0' }}>Скачивание PDF-нот доступно на тарифе Pro.</p>
-        <Link className="btn primary" to="/profile#plans" onClick={() => track('pro_required', { scoreId: score.id })}>Подключить Pro</Link>
+        <button className="btn primary" onClick={() => { track('pro_required', { scoreId: score.id }); offerPro({ title: 'Скачивание PDF — в Pro', text: `Скачайте «${score.title}» и все остальные ноты в PDF, чтобы играть по ним на своём инструменте.`, place: 'score_download' }); }}>Скачать PDF</button>
       </div>
     );
   }

@@ -28,7 +28,7 @@ export function LimitModal() {
         <p>{LIMIT_SUB}</p>
         <div className="actions">
           <button className="btn" onClick={() => { closeLimitModal(); nav('/progress'); }}>Продолжить завтра</button>
-          <button ref={primary} className="btn primary" onClick={() => { track('pro_click', { place: 'limit_modal' }); closeLimitModal(); nav('/profile'); }}>Заниматься без ограничений → Pro</button>
+          <button ref={primary} className="btn primary" onClick={() => { track('pro_click', { place: 'limit_modal' }); closeLimitModal(); nav('/profile#plans'); }}>Заниматься без ограничений → Pro</button>
         </div>
       </div>
     </div>

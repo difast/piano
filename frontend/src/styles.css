@@ -446,4 +446,22 @@ button, a, summary, label, select { touch-action: manipulation; }
 .pro-lock-card .muted { max-width: 520px; } .pro-lock-card p { margin: 0 0 10px; }
 .stats-teaser { display: flex; align-items: flex-end; gap: 8px; height: 70px; width: min(320px, 100%); margin: 4px auto 14px; filter: blur(2px); opacity: .55; }
 .stats-teaser span { flex: 1; background: var(--brand); border-radius: 6px 6px 2px 2px; }
-.song-card.locked .cover { filter: grayscale(.6); opacity: .75; }
+
+/* закрытые на Free карточки: обложка темнее, поверх — «PRO» */
+.cover { position: relative; overflow: hidden; }
+.cover.locked::after { content: ''; position: absolute; inset: 0; background: rgba(15,15,25,.45); }
+.cover.locked > span:first-child { opacity: .55; }
+.cover-pro { position: absolute; z-index: 1; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: .95rem; font-weight: 800; letter-spacing: .08em;
+  color: #78350f; background: linear-gradient(135deg, #fde68a, #fbbf24); border-radius: 99px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.3); white-space: nowrap; }
+.song-card.locked { cursor: pointer; }
+.song-card.locked:hover .cover-pro { transform: translate(-50%, -50%) scale(1.06); }
+.song-head .cover-pro { font-size: .8rem; padding: 4px 10px; }
+
+/* окно «Доступно в Pro» */
+.modal.upsell { position: relative; max-width: 440px; text-align: left; }
+.modal.upsell h2, .modal.upsell > p, .modal.upsell .modal-icon { text-align: center; }
+.modal-x { position: absolute; top: 10px; right: 12px; background: none; border: 0; font-size: 1.6rem; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.upsell-list { margin: 10px 0 14px; }
+.upsell-pricing .btn { width: 100%; justify-content: center; }
+.upsell-pricing .plan-benefit { margin-top: -2px; }
+.link-btn { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--muted); font-weight: 500; }

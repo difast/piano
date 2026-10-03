@@ -6,7 +6,11 @@ import { formatPrice, planBenefit, plural } from '../lib';
 const LABEL = (days: number) => (days === 0 ? 'Навсегда' : days >= 365 ? 'Год' : 'Месяц');
 
 /** Карточка Pro на главной: переключатель «Месяц / Год / Навсегда» с ценой и выгодой. */
-export function ProPricing({ plans, cta, children }: { plans: BillingPlan[]; cta: { to: string; label: string; primary: boolean; onClick?: () => void }; children?: ReactNode }) {
+export function ProPricing({ plans, cta, children, onBuy, busy }: {
+  plans: BillingPlan[]; cta: { to: string; label: string; primary: boolean; onClick?: () => void }; children?: ReactNode;
+  /** если задано — кнопка сразу оформляет выбранный тариф (вместо перехода по ссылке) */
+  onBuy?: (planId: string) => void; busy?: boolean;
+}) {
   const initial = plans.find((p) => p.days >= 365) ?? plans[0];
   const [id, setId] = useState(initial.id);
   const p = plans.find((x) => x.id === id) ?? initial;
@@ -34,7 +38,9 @@ export function ProPricing({ plans, cta, children }: { plans: BillingPlan[]; cta
         {p.days > 0 && p.days < 365 && <>Попробовать Pro без обязательств. Автосписаний нет.</>}
       </p>
       {children}
-      <Link className={`btn ${cta.primary ? 'primary' : ''}`} to={cta.to} onClick={cta.onClick}>{cta.label}</Link>
+      {onBuy
+        ? <button className="btn primary" disabled={busy} onClick={() => onBuy(p.id)}>{busy ? 'Переходим к оплате…' : `Оформить за ${formatPrice(p.price, p.currency)}`}</button>
+        : <Link className={`btn ${cta.primary ? 'primary' : ''}`} to={cta.to} onClick={cta.onClick}>{cta.label}</Link>}
     </>
   );
 }
