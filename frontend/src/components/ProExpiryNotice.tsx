@@ -47,7 +47,7 @@ export function ProExpiryNotice() {
     : `Pro закончится через ${daysWord(left)}`;
   const text = kind === 'ended'
     ? `Срок истёк ${formatDate(until)}. Снова действует лимит 15 минут в день, скачивание нот недоступно. Прогресс сохранён.`
-    : `Подписка действует до ${formatDate(until)}. После этого снова будет лимит 15 минут в день, а новую подписку можно будет оформить в профиле. Прогресс сохранится.`;
+    : `Подписка действует до ${formatDate(until)}, потом снова будет лимит 15 минут в день. Можно уже сейчас перейти на больший тариф — он начнётся после окончания текущего.`;
 
   return (
     <div className={`pro-notice ${kind}`} role="status" aria-live="polite">
@@ -59,7 +59,10 @@ export function ProExpiryNotice() {
           {kind === 'ended' ? <>
             <Link className="btn primary small" to="/profile#plans" onClick={() => { track('pro_click', { place: 'expiry_ended' }); close(); }}>Вернуть Pro</Link>
             <button className="btn small" onClick={close}>Позже</button>
-          </> : <button className="btn small" onClick={close}>Понятно</button>}
+          </> : <>
+            <Link className="btn primary small" to="/profile#plans" onClick={() => { track('pro_click', { place: `expiry_${kind}` }); close(); }}>Смотреть тарифы</Link>
+            <button className="btn small" onClick={close}>Понятно</button>
+          </>}
         </div>
       </div>
       <button className="pro-notice-x" aria-label="Закрыть" onClick={close}>×</button>

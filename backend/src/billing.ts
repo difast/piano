@@ -41,6 +41,26 @@ const DEFS = [
 export const FOREVER = '2999-12-31T00:00:00.000Z';
 export const isForever = (iso: string | null | undefined) => !!iso && iso >= '2900';
 
+/** Старшинство тарифов: при действующем Pro можно перейти только на тариф выше. */
+const RANK: Record<string, number> = { 'pro-month': 1, 'pro-year': 2, 'pro-forever': 3 };
+const rank = (planId: string | null) => (planId ? RANK[planId] ?? 0 : 0);
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }).replace(/\s?г\.$/, '');
+
+/** Текущий тариф пользователя — последний оплаченный (и не возвращённый) заказ. Только если Pro ещё действует. */
+export async function currentPlan(userId: number): Promise<string | null> {
+  const u = await db.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ?', userId);
+  if (!u?.pro_until || Date.parse(u.pro_until) <= Date.now()) return null;
+  return (await db.get<{ plan: string }>("SELECT plan FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY paid_at DESC LIMIT 1", userId))?.plan ?? null;
+}
+
+/** Тарифы, которые пользователь может купить сейчас. */
+export async function availablePlanIds(user: { id: number; isPro: boolean; proUntil: string | null } | undefined, plans: { id: string }[]) {
+  if (!user?.isPro) return plans.map((p) => p.id);
+  if (isForever(user.proUntil)) return [];
+  const cur = rank(await currentPlan(user.id));
+  return plans.filter((p) => rank(p.id) > cur).map((p) => p.id);
+}
+
 function parsePrice(v?: string): string | null {
   if (!v) return null;
   const n = v.trim().replace(',', '.');
@@ -91,16 +111,18 @@ const orderByYk = (ykId: string) => db.get<OrderRow>('SELECT * FROM payments WHE
 export async function createCheckout(user: { id: number; email: string; isPro: boolean; proUntil: string | null }, planId: string) {
   const info = billingInfo();
   if (!info.enabled) throw new BillingError(503, 'Оплата пока недоступна. Попробуйте позже.');
-  // при действующем Pro новую подписку купить нельзя
-  if (user.isPro) {
-    const until = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
-    throw new BillingError(409, isForever(until) ? 'У вас уже есть Pro навсегда.'
-      : until ? `У вас уже есть активная подписка Pro до ${new Date(until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' })}. Новую можно будет оформить после её окончания.`
-      : 'У вас уже есть активная подписка Pro.');
-  }
   const plan = info.plans.find((p) => p.id === planId);
   if (!plan) throw new BillingError(400, 'Неизвестный тариф');
-
+  // При действующем Pro можно купить только тариф больше текущего; он начнётся после окончания текущего (см. applyPayment).
+  if (user.isPro) {
+    const until = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
+    if (isForever(until)) throw new BillingError(409, 'У вас уже есть Pro навсегда.');
+    const current = await currentPlan(user.id);
+    if (rank(plan.id) <= rank(current)) {
+      const date = until ? ` до ${fmtDate(until)}` : '';
+      throw new BillingError(409, `У вас уже есть активная подписка Pro${date}. Сейчас можно перейти только на тариф с бо́льшим сроком — он начнётся после окончания текущего.`);
+    }
+  }
   const id = randomUUID();
   await db.run('INSERT INTO payments (id, user_id, plan, days, amount) VALUES (?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price);
   const item = (plan.days === 0 ? "Бессрочный доступ Pro" : `Подписка ${plan.title}`).slice(0, 128);
@@ -139,7 +161,7 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
       const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), o.id);
       if (done !== 1) return 'noop';    // уже обработан раньше
       const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
-      const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // если вдруг остался срок (две вкладки) — не теряем его
+      const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // новый срок начинается после окончания текущего (переход на больший тариф, две вкладки)
       const until = o.days === 0 || isForever(cur) ? FOREVER : new Date(base + o.days * 86_400_000).toISOString();
       await t.run('UPDATE users SET pro_until = ? WHERE id = ?', until, o.user_id);
       await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));

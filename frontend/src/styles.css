@@ -427,3 +427,14 @@ button, a, summary, label, select { touch-action: manipulation; }
 .plan-note { font-size: .85rem; color: var(--muted); flex: 1; margin-bottom: 6px; }
 .plan-card .btn { width: 100%; justify-content: center; }
 .pro-pop-note { font-size: .82rem; color: var(--muted); margin: 0; }
+
+.plan-start { font-size: .8rem; color: #3730a3; background: var(--brand-soft); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; }
+.upgrade-title { margin: 14px 0 4px; font-size: 1rem; }
+
+/* ===== переключатель срока Pro на главной ===== */
+.period-switch { display: flex; gap: 4px; background: #f5f5f4; border-radius: 12px; padding: 4px; margin: 4px 0 12px; }
+.period-switch button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 0; background: none; border-radius: 9px; font: inherit; font-weight: 600; font-size: .9rem; color: var(--muted); cursor: pointer; }
+.period-switch button.on { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.ps-badge { font-size: .7rem; font-weight: 700; color: #fff; background: #16a34a; border-radius: 99px; padding: 1px 6px; }
+.plan-benefit { font-size: .88rem; color: #44403c; margin: -4px 0 12px; min-height: 2.6em; }
+.plan-benefit b { color: #15803d; }

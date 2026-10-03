@@ -79,3 +79,16 @@ export const isForever = (iso: string | null | undefined) => !!iso && iso >= '29
 export const planPeriod = (days: number) => (days === 0 ? 'навсегда' : days >= 365 ? 'год' : 'месяц');
 /** «до 8 октября 2026» или «навсегда» */
 export const proUntilText = (iso: string) => (isForever(iso) ? 'навсегда' : `до ${formatDate(iso)}`);
+
+/** Выгода тарифа относительно помесячной оплаты. */
+export function planBenefit(p: { days: number; price: string }, plans: { days: number; price: string }[]) {
+  const month = plans.find((x) => x.days > 0 && x.days < 365);
+  const price = Number(p.price);
+  if (p.days >= 365) {
+    const full = month ? Number(month.price) * 12 : 0;
+    const save = full - price;
+    return { perMonth: Math.round(price / 12), save: save > 0 ? Math.round(save) : 0, pct: save > 0 ? Math.round((save / full) * 100) : 0, months: 0 };
+  }
+  if (p.days === 0 && month) return { perMonth: 0, save: 0, pct: 0, months: Math.ceil(price / Number(month.price)) };
+  return { perMonth: 0, save: 0, pct: 0, months: 0 };
+}

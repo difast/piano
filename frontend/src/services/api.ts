@@ -1,7 +1,7 @@
 export interface User { id: number; email: string; name: string; isPro: boolean; /** дата окончания оплаченной подписки (ISO) */ proUntil?: string | null }
 
 export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
-export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null }
+export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[] }
 export interface OrderStatus { status: 'new' | 'pending' | 'succeeded' | 'canceled' | 'refunded'; plan: string; amount: string; proUntil: string | null }
 
 export interface ProgressState {

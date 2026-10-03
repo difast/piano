@@ -22,6 +22,8 @@ export default function Profile() {
   // переход по ссылке на тарифы (#plans) — прокручиваем к тарифам, когда они загрузились
   useEffect(() => { if (hash === '#plans' && billing) plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [hash, billing]);
   if (!user) return null;
+  const activeUntil = user.proUntil && Date.parse(user.proUntil) > Date.now() ? user.proUntil : null;
+  const upgrades = billing?.enabled ? billing.plans.filter((p) => billing.available?.includes(p.id)) : [];
 
   const buy = async (id: string) => {
     track('pay_start', { plan: id });
@@ -51,8 +53,12 @@ export default function Profile() {
                 : 'Pro включён.'}
             </p>
             <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Скачивание PDF-нот в разделе «Ноты»</li></ul>
-            {user.proUntil && !isForever(user.proUntil) && Date.parse(user.proUntil) > Date.now() &&
-              <p className="muted small" style={{ margin: 0 }}>Оформить новую подписку можно будет после окончания текущей — мы напомним заранее.</p>}
+            {billing?.enabled && !!upgrades.length && <>
+              <h4 className="upgrade-title">Перейти на больший тариф</h4>
+              <p className="muted small" style={{ margin: '0 0 10px' }}>Новый срок начнётся с момента окончания текущей подписки — оплаченные дни не пропадут.</p>
+              <PlanCards plans={upgrades} all={billing.plans} busy={busy} onBuy={buy} after={activeUntil && !isForever(activeUntil) ? activeUntil : null} />
+              {msg && <Notice kind="error">{msg}</Notice>}
+            </>}
           </>
         ) : (
           <>

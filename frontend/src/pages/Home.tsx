@@ -9,7 +9,7 @@ import { track } from '../services/analytics';
 import { Piano } from '../components/Piano';
 import { Cover } from './Songs';
 import { useBilling } from '../hooks/useBilling';
-import { formatPrice, planPeriod } from '../lib';
+import { ProPricing } from '../components/ProPricing';
 import { LegalLink } from '../components/LegalLink';
 
 const FAQ = [
@@ -40,6 +40,14 @@ export default function Home() {
   usePageMeta('Пианино с нуля', 'Научись играть на пианино с нуля: пошаговые уроки и песни — на своём инструменте или на виртуальной клавиатуре в браузере. Бесплатно, 15 минут занятий в день.');
   const { user, currentLessonId, completedLessons, isPro } = useApp();
   const billing = useBilling();
+  const proList = (
+    <ul className="plan-list">
+      <li>Всё из тарифа Free</li>
+      <li>Занятия без ограничения по времени</li>
+      <li>Скачивание PDF-нот</li>
+      <li>Занимайтесь сколько хочется каждый день</li>
+    </ul>
+  );
   useEffect(() => { track('home_view'); }, []);
   const started = completedLessons.length > 0;
   const to = !user ? '/register' : currentLessonId ? `/learn/${currentLessonId}` : '/learn';
@@ -156,21 +164,13 @@ export default function Home() {
           <div className="card plan">
             <span className="badge pro">Pro</span>
             <h3>Pro</h3>
-            {billing?.enabled && billing.plans.length ? <>
-              <p className="price">{formatPrice(billing.plans[0].price, billing.plans[0].currency)}<small className="muted"> {billing.plans[0].days === 0 ? 'навсегда' : `/ ${planPeriod(billing.plans[0].days)}`}</small></p>
-              {billing.plans.length > 1 && <p className="muted small" style={{ marginTop: -6 }}>{billing.plans.slice(1).map((p) => p.days === 0 ? `${formatPrice(p.price, p.currency)} навсегда` : `${formatPrice(p.price, p.currency)} за ${planPeriod(p.days)}`).join(' · ')}</p>}
-            </> : <p className="price muted">Скоро</p>}
-            <ul className="plan-list">
-              <li>Всё из тарифа Free</li>
-              <li>Занятия без ограничения по времени</li>
-              <li>Скачивание PDF-нот</li>
-              <li>Занимайтесь сколько хочется каждый день</li>
-            </ul>
-            {billing?.enabled
-              ? (isPro
-                ? <Link className="btn" to="/profile">👑 У вас Pro</Link>
-                : <Link className="btn primary" to={user ? '/profile#plans' : '/register'} onClick={onCta('pro')}>{user ? 'Подключить Pro' : 'Зарегистрироваться'}</Link>)
-              : <button className="btn" disabled>Пока недоступно</button>}
+            {billing?.enabled && billing.plans.length
+              ? <ProPricing plans={billing.plans} cta={
+                  isPro && !billing.available?.length ? { to: '/profile', label: '👑 У вас Pro', primary: false }
+                  : isPro ? { to: '/profile#plans', label: 'У вас Pro · перейти на больший тариф', primary: false }
+                  : user ? { to: '/profile#plans', label: 'Подключить Pro', primary: true, onClick: onCta('pro') }
+                  : { to: '/register', label: 'Зарегистрироваться и выбрать', primary: true, onClick: onCta('pro') }}>{proList}</ProPricing>
+              : <><p className="price muted">Скоро</p>{proList}<button className="btn" disabled>Пока недоступно</button></>}
           </div>
         </div>
       </section>

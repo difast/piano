@@ -5,7 +5,7 @@ import { addActiveSeconds, getState } from './progress.ts';
 import { LESSONS, LEGAL_VERSION, SONG_IDS } from './content.ts';
 import { loadScores, pdfPath, publicScore } from './scores.ts';
 import { createReadStream } from 'node:fs';
-import { BillingError, billingInfo, createCheckout, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
+import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -149,9 +149,15 @@ api.post('/dev/pro', requireUser, async (req, res) => {
 });
 
 // ---- Оплата Pro через ЮKassa ----
-api.get('/billing/plans', (req, res) => {
+api.get('/billing/plans', async (req, res) => {
   const info = billingInfo();
-  res.json({ enabled: info.enabled, plans: info.enabled ? info.plans : [], proUntil: req.user?.proUntil ?? null });
+  const plans = info.enabled ? info.plans : [];
+  res.json({
+    enabled: info.enabled, plans, proUntil: req.user?.proUntil ?? null,
+    // для вошедшего: текущий тариф и какие тарифы можно купить сейчас (при действующем Pro — только больше текущего)
+    currentPlan: req.user ? await currentPlan(req.user.id) : null,
+    available: await availablePlanIds(req.user, plans),
+  });
 });
 
 api.post('/billing/checkout', requireUser, async (req, res) => {

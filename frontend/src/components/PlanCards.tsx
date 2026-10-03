@@ -1,21 +1,24 @@
 import type { BillingPlan } from '../services/api';
-import { formatPrice, planPeriod } from '../lib';
+import { formatDate, formatPrice, planBenefit, planPeriod, plural } from '../lib';
 
-/** Карточки тарифов Pro: цена, срок, выгода относительно помесячной оплаты. */
-export function PlanCards({ plans, busy, onBuy }: { plans: BillingPlan[]; busy: boolean; onBuy: (id: string) => void }) {
-  const month = plans.find((p) => p.days > 0 && p.days < 365);
-  const best = plans.find((p) => p.days >= 365) ? plans.find((p) => p.days >= 365)!.id : null;
+/**
+ * Карточки тарифов Pro: цена, срок, выгода относительно помесячной оплаты.
+ * after — дата окончания текущей подписки: тогда показываем, с какого момента начнётся новый тариф.
+ */
+export function PlanCards({ plans, all = plans, busy, onBuy, after }: { plans: BillingPlan[]; all?: BillingPlan[]; busy: boolean; onBuy: (id: string) => void; after?: string | null }) {
+  const best = plans.find((p) => p.days >= 365)?.id ?? null;
   return (
     <div className="plan-cards">
       {plans.map((p) => {
         const period = planPeriod(p.days);
-        let note = '';
-        if (p.days === 0) note = 'Один платёж — без продлений и сроков';
-        else if (p.days >= 365) {
-          const perMonth = Number(p.price) / 12;
-          const save = month ? Number(month.price) * 12 - Number(p.price) : 0;
-          note = `≈ ${formatPrice(String(Math.round(perMonth)))} в месяц` + (save > 0 ? ` · выгода ${formatPrice(String(Math.round(save)))}` : '');
-        } else note = 'Попробовать без обязательств';
+        const b = planBenefit(p, all);
+        const note = p.days === 0
+          ? (b.months > 0 ? `Один платёж — как ${b.months} ${plural(b.months, 'месяц', 'месяца', 'месяцев')} помесячно, а действует всегда` : 'Один платёж — без продлений и сроков')
+          : p.days >= 365 ? `≈ ${formatPrice(String(b.perMonth))} в месяц` + (b.save > 0 ? ` · выгода ${formatPrice(String(b.save))} (−${b.pct}%)` : '')
+          : 'Попробовать без обязательств';
+        const start = after && p.days > 0
+          ? `Начнётся ${formatDate(after)}, после текущей подписки. Pro будет до ${formatDate(new Date(Date.parse(after) + p.days * 86_400_000).toISOString())}.`
+          : after && p.days === 0 ? 'Действует сразу после оплаты — навсегда.' : '';
         return (
           <div key={p.id} className={`plan-card${p.id === best ? ' best' : ''}${p.days === 0 ? ' forever' : ''}`}>
             {p.id === best && <span className="plan-tag">Выгодно</span>}
@@ -23,7 +26,8 @@ export function PlanCards({ plans, busy, onBuy }: { plans: BillingPlan[]; busy: 
             <div className="plan-name">{p.days === 0 ? 'Pro навсегда' : `Pro на ${period}`}</div>
             <div className="plan-price">{formatPrice(p.price, p.currency)}{p.days > 0 && <small> / {period}</small>}</div>
             <div className="plan-note">{note}</div>
-            <button className="btn primary" disabled={busy} onClick={() => onBuy(p.id)}>Оформить</button>
+            {start && <div className="plan-start">{start}</div>}
+            <button className="btn primary" disabled={busy} onClick={() => onBuy(p.id)}>{after ? 'Перейти' : 'Оформить'}</button>
           </div>
         );
       })}

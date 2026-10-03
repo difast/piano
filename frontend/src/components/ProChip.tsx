@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { daysLeft, daysWord, formatDate, formatDuration, isForever } from '../lib';
 
@@ -41,7 +41,8 @@ export function ProChip() {
             {until && <li><span>Действует до</span><b>{formatDate(until)}</b></li>}
             {left !== null && <li><span>Осталось</span><b className={soon ? 'warn' : ''}>{left === 0 ? 'последний день' : daysWord(left)}</b></li>}
           </ul>
-          {soon && <p className="pro-pop-note">После окончания вернётся лимит 15 минут в день. Новую подписку можно оформить в профиле, когда закончится текущая.</p>}
+          {soon && <p className="pro-pop-note">После окончания вернётся лимит 15 минут в день.</p>}
+          {until && <Link className="btn small" to="/profile#plans">Перейти на больший тариф</Link>}
         </div>
       )}
     </div>
