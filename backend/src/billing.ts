@@ -79,8 +79,8 @@ interface YkPayment {
 interface YkRefund { id: string; payment_id: string; status: string; amount?: { value: string; currency: string } }
 interface OrderRow { id: string; user_id: number; plan: string; days: number; amount: string; currency: string; status: string; yk_id: string | null; confirmation_url: string | null }
 
-const order = (id: string) => db.prepare('SELECT * FROM payments WHERE id = ?').get(id) as OrderRow | undefined;
-const orderByYk = (ykId: string) => db.prepare('SELECT * FROM payments WHERE yk_id = ?').get(ykId) as OrderRow | undefined;
+const order = (id: string) => db.get<OrderRow>('SELECT * FROM payments WHERE id = ?', id);
+const orderByYk = (ykId: string) => db.get<OrderRow>('SELECT * FROM payments WHERE yk_id = ?', ykId);
 
 /** Создаёт платёж и возвращает ссылку на оплату. */
 export async function createCheckout(user: { id: number; email: string }, planId: string) {
@@ -90,7 +90,7 @@ export async function createCheckout(user: { id: number; email: string }, planId
   if (!plan) throw new BillingError(400, 'Неизвестный тариф');
 
   const id = randomUUID();
-  db.prepare('INSERT INTO payments (id, user_id, plan, days, amount) VALUES (?, ?, ?, ?, ?)').run(id, user.id, plan.id, plan.days, plan.price);
+  await db.run('INSERT INTO payments (id, user_id, plan, days, amount) VALUES (?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price);
   const item = `Подписка Pro: ${plan.title}`.slice(0, 128);
   const body = {
     amount: { value: plan.price, currency: 'RUB' },
@@ -109,52 +109,47 @@ export async function createCheckout(user: { id: number; email: string }, planId
     const p = await yk<YkPayment>('POST', '/payments', body, id);   // ключ идемпотентности = номер заказа
     const url = p.confirmation?.confirmation_url;
     if (!p.id || !url) throw new Error('ЮKassa не вернула ссылку на оплату');
-    db.prepare("UPDATE payments SET yk_id = ?, status = 'pending', confirmation_url = ? WHERE id = ?").run(p.id, url, id);
+    await db.run("UPDATE payments SET yk_id = ?, status = 'pending', confirmation_url = ? WHERE id = ?", p.id, url, id);
     return { orderId: id, url };
   } catch (e) {
-    db.prepare("UPDATE payments SET status = 'canceled' WHERE id = ?").run(id);
+    await db.run("UPDATE payments SET status = 'canceled' WHERE id = ?", id);
     console.error('[billing] не удалось создать платёж:', e instanceof YkError ? `${e.status} ${e.code}: ${e.message}` : (e as Error).message);
     throw new BillingError(502, 'Не удалось создать платёж. Попробуйте позже.');
   }
 }
 
 /** Применяет проверенное состояние платежа из API ЮKassa. Безопасно вызывать многократно. */
-function applyPayment(o: OrderRow, p: YkPayment): 'activated' | 'canceled' | 'noop' {
+async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'canceled' | 'noop'> {
   // платёж обязан совпадать с заказом по id, сумме, валюте и метаданным
   if (!o.yk_id || p.id !== o.yk_id || p.amount?.value !== o.amount || p.amount?.currency !== o.currency || p.metadata?.order_id !== o.id) return 'noop';
   if (p.status === 'succeeded' && p.paid === true) {
-    db.exec('BEGIN IMMEDIATE');
-    try {
-      const done = db.prepare("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')").run(new Date().toISOString(), o.id);
-      if (Number(done.changes) !== 1) { db.exec('COMMIT'); return 'noop'; }    // уже обработан раньше
-      const cur = (db.prepare('SELECT pro_until FROM users WHERE id = ?').get(o.user_id) as { pro_until: string | null } | undefined)?.pro_until;
+    return db.tx(async (t) => {
+      const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), o.id);
+      if (done !== 1) return 'noop';    // уже обработан раньше
+      const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
       const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // продлеваем от конца текущей подписки
-      db.prepare('UPDATE users SET pro_until = ? WHERE id = ?').run(new Date(base + o.days * 86_400_000).toISOString(), o.user_id);
-      db.prepare('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)').run(o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));
-      db.exec('COMMIT');
-      return 'activated';
-    } catch (e) { db.exec('ROLLBACK'); throw e; }
+      await t.run('UPDATE users SET pro_until = ? WHERE id = ?', new Date(base + o.days * 86_400_000).toISOString(), o.user_id);
+      await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));
+      return 'activated' as const;
+    });
   }
   if (p.status === 'canceled') {
-    const r = db.prepare("UPDATE payments SET status = 'canceled' WHERE id = ? AND status IN ('new', 'pending')").run(o.id);
-    return Number(r.changes) === 1 ? 'canceled' : 'noop';
+    return (await db.run("UPDATE payments SET status = 'canceled' WHERE id = ? AND status IN ('new', 'pending')", o.id)) === 1 ? 'canceled' : 'noop';
   }
   return 'noop';
 }
 
 /** Полный возврат: подписка сокращается на срок заказа. Частичные возвраты обрабатываются вручную. */
-function applyRefund(o: OrderRow, r: YkRefund): boolean {
+async function applyRefund(o: OrderRow, r: YkRefund): Promise<boolean> {
   if (r.status !== 'succeeded' || r.payment_id !== o.yk_id || r.amount?.value !== o.amount) return false;
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const done = db.prepare("UPDATE payments SET status = 'refunded' WHERE id = ? AND status = 'succeeded'").run(o.id);
-    if (Number(done.changes) !== 1) { db.exec('COMMIT'); return false; }
-    const cur = (db.prepare('SELECT pro_until FROM users WHERE id = ?').get(o.user_id) as { pro_until: string | null } | undefined)?.pro_until;
-    if (cur) db.prepare('UPDATE users SET pro_until = ? WHERE id = ?').run(new Date(Math.max(Date.now(), Date.parse(cur) - o.days * 86_400_000)).toISOString(), o.user_id);
-    db.prepare('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)').run(o.user_id, 'payment_refunded', JSON.stringify({ plan: o.plan, amount: o.amount }));
-    db.exec('COMMIT');
+  return db.tx(async (t) => {
+    const done = await t.run("UPDATE payments SET status = 'refunded' WHERE id = ? AND status = 'succeeded'", o.id);
+    if (done !== 1) return false;
+    const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
+    if (cur) await t.run('UPDATE users SET pro_until = ? WHERE id = ?', new Date(Math.max(Date.now(), Date.parse(cur) - o.days * 86_400_000)).toISOString(), o.user_id);
+    await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_refunded', JSON.stringify({ plan: o.plan, amount: o.amount }));
     return true;
-  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  });
 }
 
 /** HTTP-уведомление ЮKassa. Телу не доверяем: состояние берём из API. */
@@ -163,29 +158,29 @@ export async function processNotification(body: unknown): Promise<string> {
   if (!b || b.type !== 'notification' || typeof b.event !== 'string' || typeof b.object?.id !== 'string') throw new BillingError(400, 'Некорректное уведомление');
   const id = b.object.id;
   if (b.event.startsWith('payment.')) {
-    const o = orderByYk(id);
+    const o = await orderByYk(id);
     if (!o) return 'ignored: неизвестный платёж';
     const p = await yk<YkPayment>('GET', `/payments/${encodeURIComponent(id)}`);
-    return applyPayment(o, p);
+    return await applyPayment(o, p);
   }
   if (b.event === 'refund.succeeded') {
     const r = await yk<YkRefund>('GET', `/refunds/${encodeURIComponent(id)}`);
-    const o = orderByYk(r.payment_id);
+    const o = await orderByYk(r.payment_id);
     if (!o) return 'ignored: неизвестный платёж';
-    return applyRefund(o, r) ? 'refunded' : 'noop';
+    return (await applyRefund(o, r)) ? 'refunded' : 'noop';
   }
   return 'ignored: событие не используется';
 }
 
 /** Статус заказа для страницы возврата. Если уведомление запаздывает — сами спрашиваем ЮKassa. */
 export async function orderStatus(orderId: string, userId: number) {
-  let o = order(orderId);
+  let o = await order(orderId);
   if (!o || o.user_id !== userId) throw new BillingError(404, 'Заказ не найден');
   if (o.status === 'pending' && o.yk_id) {
-    try { applyPayment(o, await yk<YkPayment>('GET', `/payments/${encodeURIComponent(o.yk_id)}`)); o = order(orderId)!; }
+    try { await applyPayment(o, await yk<YkPayment>('GET', `/payments/${encodeURIComponent(o.yk_id)}`)); o = (await order(orderId))!; }
     catch (e) { console.error('[billing] сверка заказа не удалась:', (e as Error).message); }
   }
-  const until = (db.prepare('SELECT pro_until FROM users WHERE id = ?').get(userId) as { pro_until: string | null }).pro_until;
+  const until = (await db.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ?', userId))?.pro_until ?? null;
   return { status: o.status, plan: o.plan, amount: o.amount, proUntil: until };
 }
 

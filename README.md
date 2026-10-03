@@ -5,7 +5,7 @@
 | Папка | Что это | Стек |
 |---|---|---|
 | `frontend/` | сайт (статика) | Vite + React + TypeScript + react-router |
-| `backend/` | API: аккаунты, прогресс, серверный лимит Free | Node.js 22.13+, Express, SQLite (`node:sqlite`) |
+| `backend/` | API: аккаунты, прогресс, серверный лимит Free | Node.js 22+, Express, PostgreSQL |
 
 Деплоятся раздельно, у каждого свой `package.json`.
 
@@ -32,7 +32,9 @@ cd frontend && npm install && npm run dev     # сайт на :5173 (запро�
 |---|---|
 | `CORS_ORIGIN` | адрес(а) фронта через запятую, например `https://app.example.ru` |
 | `TRUST_PROXY=1` | если сервер за прокси с HTTPS |
-| `DB_FILE` | путь к SQLite на постоянном диске (по умолчанию `data/piano.db`) |
+| `DATABASE_URL` | **обязательна в продакшене**: адрес PostgreSQL, `postgres://пользователь:пароль@хост:5432/база` |
+| `DATABASE_SSL` | `require` или `no-verify`, если база требует SSL (`no-verify` — для самоподписанного сертификата) |
+| `DB_DIR` | только для разработки: папка встроенной базы PGlite (без `DATABASE_URL`; в продакшене отключено, если нет `ALLOW_LOCAL_DB=1`) |
 | `COOKIE_SAMESITE` | `lax` (по умолчанию) или `none` — см. ниже |
 | `APP_TZ` | часовой пояс суток лимита (по умолчанию `Europe/Moscow`) |
 | `PORT` | порт (по умолчанию 3001) |
@@ -93,6 +95,6 @@ npm run add-score -- --file ~/Downloads/minuet.pdf --id minuet-in-g --title "М�
 Клиент отправляет секунды активности, сервер ограничивает их реально прошедшим временем между запросами аккаунта и считает сутки по `APP_TZ`. Очистка браузера, повторный вход и другое устройство лимит не сбрасывают.
 
 ## События воронки
-`sqlite3 <DB_FILE> "select name, count(*) from events group by name"`
+`psql "$DATABASE_URL" -c "select name, count(*) from events group by name"`
 
 Юридические реквизиты и версия документов: `frontend/src/data/legal.ts`.

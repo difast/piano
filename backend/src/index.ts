@@ -50,10 +50,10 @@ api.use((req, res, next) => {
 });
 
 const publicUser = (u: { id: number; email: string; name: string; isPro: boolean; proUntil: string | null }) => ({ id: u.id, email: u.email, name: u.name, isPro: u.isPro, proUntil: u.proUntil });
-const snapshot = (req: Request) => ({ user: publicUser(req.user!), state: getState(req.user!.id, req.user!.isPro), devTools: DEV_TOOLS });
+const snapshot = async (req: Request) => ({ user: publicUser(req.user!), state: await getState(req.user!.id, req.user!.isPro), devTools: DEV_TOOLS });
 
-function setSessionCookie(req: Request, res: Response, userId: number) {
-  const { token, maxAgeMs } = createSession(userId);
+async function setSessionCookie(req: Request, res: Response, userId: number) {
+  const { token, maxAgeMs } = await createSession(userId);
   res.cookie(COOKIE, token, { httpOnly: true, sameSite: SAME_SITE, secure: req.secure || SAME_SITE === 'none', maxAge: maxAgeMs, path: '/' });
 }
 
@@ -68,77 +68,82 @@ api.post('/auth/register', async (req, res) => {
   if (!EMAIL_RE.test(email)) { res.status(400).json({ error: 'Введите корректный email' }); return; }
   if (password.length < 8) { res.status(400).json({ error: 'Пароль должен быть не короче 8 символов' }); return; }
   if (password.length > 200) { res.status(400).json({ error: 'Пароль слишком длинный' }); return; }
-  if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) { res.status(409).json({ error: 'Этот email уже зарегистрирован. Войдите в аккаунт.' }); return; }
-  const info = db.prepare("INSERT INTO users (email, name, password_hash, consent_at, consent_version) VALUES (?, ?, ?, datetime('now'), ?)").run(email, name, await hashPassword(password), LEGAL_VERSION);
-  const id = Number(info.lastInsertRowid);
-  setSessionCookie(req, res, id);
+  if (await db.get('SELECT 1 FROM users WHERE email = ?', email)) { res.status(409).json({ error: 'Этот email уже зарегистрирован. Войдите в аккаунт.' }); return; }
+  let id: number;
+  try {
+    id = (await db.get<{ id: number }>('INSERT INTO users (email, name, password_hash, consent_at, consent_version) VALUES (?, ?, ?, ?, ?) RETURNING id', email, name, await hashPassword(password), new Date().toISOString(), LEGAL_VERSION))!.id;
+  } catch (e) {
+    if ((e as { code?: string }).code === '23505') { res.status(409).json({ error: 'Этот email уже зарегистрирован. Войдите в аккаунт.' }); return; }   // гонка двух регистраций
+    throw e;
+  }
+  await setSessionCookie(req, res, id);
   req.user = { id, email, name, isPro: false, proUntil: null };
-  res.status(201).json(snapshot(req));
+  res.status(201).json(await snapshot(req));
 });
 
 api.post('/auth/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!rateLimit(`login:${req.ip}:${email}`)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
-  const row = db.prepare('SELECT id, email, name, is_pro AS isPro, pro_until AS proUntil, password_hash AS hash FROM users WHERE email = ?').get(email) as
-    { id: number; email: string; name: string; isPro: number; proUntil: string | null; hash: string } | undefined;
+  const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; hash: string }>(
+    'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", password_hash AS hash FROM users WHERE email = ?', email);
   const ok = row ? await verifyPassword(String(req.body?.password ?? ''), row.hash) : false;
   if (!row || !ok) { res.status(401).json({ error: 'Неверный email или пароль' }); return; }
-  setSessionCookie(req, res, row.id);
+  await setSessionCookie(req, res, row.id);
   req.user = toAuthUser(row);
-  res.json(snapshot(req));
+  res.json(await snapshot(req));
 });
 
-api.post('/auth/logout', (req, res) => {
-  destroySession(readCookie(req, COOKIE));
+api.post('/auth/logout', async (req, res) => {
+  await destroySession(readCookie(req, COOKIE));
   res.clearCookie(COOKIE, { path: '/' });
   res.json({ ok: true });
 });
 
 // 200 и для гостя — чтобы в консоли не было 401
-api.get('/me', (req, res) => res.json(req.user ? snapshot(req) : { user: null }));
+api.get('/me', async (req, res) => res.json(req.user ? await snapshot(req) : { user: null }));
 
-api.post('/lessons/:id/complete', requireUser, (req, res) => {
+api.post('/lessons/:id/complete', requireUser, async (req, res) => {
   const lesson = LESSONS.find((l) => l.id === String(req.params.id));
   if (!lesson) { res.status(404).json({ error: 'Урок не найден' }); return; }
-  const done = getState(req.user!.id, req.user!.isPro).completedLessons;
+  const done = (await getState(req.user!.id, req.user!.isPro)).completedLessons;
   if (!lesson.prerequisites.every((p) => done.includes(p))) { res.status(403).json({ error: 'Сначала пройдите предыдущие уроки' }); return; }
-  db.prepare('INSERT OR IGNORE INTO completed_lessons (user_id, lesson_id) VALUES (?, ?)').run(req.user!.id, lesson.id);
-  res.json(snapshot(req));
+  await db.run('INSERT INTO completed_lessons (user_id, lesson_id) VALUES (?, ?) ON CONFLICT DO NOTHING', req.user!.id, lesson.id);
+  res.json(await snapshot(req));
 });
 
 // Сохраняем текущий этап незавершённого урока, чтобы продолжить с того же места на любом устройстве.
-api.put('/lessons/:id/stage', requireUser, (req, res) => {
+api.put('/lessons/:id/stage', requireUser, async (req, res) => {
   const lesson = LESSONS.find((l) => l.id === String(req.params.id));
   const stage = Math.floor(Number(req.body?.stage));
   if (!lesson) { res.status(404).json({ error: 'Урок не найден' }); return; }
   if (!Number.isFinite(stage) || stage < 0 || stage > 50) { res.status(400).json({ error: 'Некорректный этап' }); return; }
-  const done = getState(req.user!.id, req.user!.isPro).completedLessons;
+  const done = (await getState(req.user!.id, req.user!.isPro)).completedLessons;
   if (!done.includes(lesson.id) && !lesson.prerequisites.every((p) => done.includes(p))) { res.status(403).json({ error: 'Урок ещё закрыт' }); return; }
-  db.prepare(`INSERT INTO lesson_stage (user_id, lesson_id, stage) VALUES (?, ?, ?)
-              ON CONFLICT(user_id, lesson_id) DO UPDATE SET stage = excluded.stage, updated_at = CURRENT_TIMESTAMP`).run(req.user!.id, lesson.id, stage);
+  await db.run(`INSERT INTO lesson_stage (user_id, lesson_id, stage) VALUES (?, ?, ?)
+              ON CONFLICT(user_id, lesson_id) DO UPDATE SET stage = excluded.stage, updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`, req.user!.id, lesson.id, stage);
   res.json({ ok: true });
 });
 
-api.put('/songs/:id/learned', requireUser, (req, res) => {
+api.put('/songs/:id/learned', requireUser, async (req, res) => {
   const songId = String(req.params.id);
   if (!SONG_IDS.includes(songId)) { res.status(404).json({ error: 'Песня не найдена' }); return; }
-  if (req.body?.learned) db.prepare('INSERT OR IGNORE INTO learned_songs (user_id, song_id) VALUES (?, ?)').run(req.user!.id, songId);
-  else db.prepare('DELETE FROM learned_songs WHERE user_id = ? AND song_id = ?').run(req.user!.id, songId);
-  res.json(snapshot(req));
+  if (req.body?.learned) await db.run('INSERT INTO learned_songs (user_id, song_id) VALUES (?, ?) ON CONFLICT DO NOTHING', req.user!.id, songId);
+  else await db.run('DELETE FROM learned_songs WHERE user_id = ? AND song_id = ?', req.user!.id, songId);
+  res.json(await snapshot(req));
 });
 
-api.post('/practice/tick', requireUser, (req, res) => {
+api.post('/practice/tick', requireUser, async (req, res) => {
   const seconds = Number(req.body?.seconds);
   if (!Number.isFinite(seconds) || seconds < 0) { res.status(400).json({ error: 'Некорректные данные' }); return; }
-  res.json({ state: addActiveSeconds(req.user!.id, req.user!.isPro, seconds) });
+  res.json({ state: await addActiveSeconds(req.user!.id, req.user!.isPro, seconds) });
 });
 
 // Тестовое переключение Pro (оплаты пока нет). В продакшене выключено, если не задан ALLOW_DEV_PRO=1.
-api.post('/dev/pro', requireUser, (req, res) => {
+api.post('/dev/pro', requireUser, async (req, res) => {
   if (!DEV_TOOLS) { res.status(404).json({ error: 'Not found' }); return; }
-  db.prepare('UPDATE users SET is_pro = ? WHERE id = ?').run(req.body?.isPro ? 1 : 0, req.user!.id);
+  await db.run('UPDATE users SET is_pro = ? WHERE id = ?', req.body?.isPro ? 1 : 0, req.user!.id);
   req.user!.isPro = !!req.body?.isPro;
-  res.json(snapshot(req));
+  res.json(await snapshot(req));
 });
 
 // ---- Оплата Pro через ЮKassa ----
@@ -192,12 +197,11 @@ api.get('/scores/:id/download', requireUser, (req, res) => {
   createReadStream(file).on('error', () => { if (!res.headersSent) res.status(500).end(); else res.destroy(); }).pipe(res);
 });
 
-api.post('/events', (req, res) => {
+api.post('/events', async (req, res) => {
   const name = String(req.body?.name ?? '').slice(0, 64);
   if (!name) { res.status(400).json({ error: 'name required' }); return; }
-  db.prepare('INSERT INTO events (user_id, anon_id, name, props) VALUES (?, ?, ?, ?)').run(
-    req.user?.id ?? null, String(req.body?.anonId ?? '').slice(0, 64) || null, name, JSON.stringify(req.body?.props ?? {}).slice(0, 1000),
-  );
+  await db.run('INSERT INTO events (user_id, anon_id, name, props) VALUES (?, ?, ?, ?)',
+    req.user?.id ?? null, String(req.body?.anonId ?? '').slice(0, 64) || null, name, JSON.stringify(req.body?.props ?? {}).slice(0, 1000));
   res.status(204).end();
 });
 

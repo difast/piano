@@ -22,15 +22,15 @@ export async function verifyPassword(pw: string, stored: string): Promise<boolea
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
-export function createSession(userId: number): { token: string; maxAgeMs: number } {
+export async function createSession(userId: number): Promise<{ token: string; maxAgeMs: number }> {
   const token = randomBytes(32).toString('base64url');
   const maxAgeMs = SESSION_DAYS * 86_400_000;
-  db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha(token), userId, Date.now() + maxAgeMs);
+  await db.run('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)', sha(token), userId, Date.now() + maxAgeMs);
   return { token, maxAgeMs };
 }
 
-export function destroySession(token: string | undefined) {
-  if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha(token));
+export async function destroySession(token: string | undefined) {
+  if (token) await db.run('DELETE FROM sessions WHERE token_hash = ?', sha(token));
 }
 
 export function readCookie(req: Request, name: string): string | undefined {
@@ -53,16 +53,17 @@ export const toAuthUser = (r: { id: number; email: string; name: string; isPro: 
 declare module 'express-serve-static-core' { interface Request { user?: AuthUser } }
 
 /** Подставляет req.user, если есть валидная сессия. */
-export function loadUser(req: Request, _res: Response, next: NextFunction) {
+export async function loadUser(req: Request, _res: Response, next: NextFunction) {
   const token = readCookie(req, COOKIE);
-  if (token) {
-    const row = db.prepare(
-      `SELECT u.id, u.email, u.name, u.is_pro AS isPro, u.pro_until AS proUntil, s.expires_at AS exp
-       FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`,
-    ).get(sha(token)) as { id: number; email: string; name: string; isPro: number; proUntil: string | null; exp: number } | undefined;
-    if (row && row.exp > Date.now()) req.user = toAuthUser(row);
-    else if (row) destroySession(token);
-  }
+  try {
+    if (token) {
+      const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; exp: number }>(
+        `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", s.expires_at AS exp
+         FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, sha(token));
+      if (row && Number(row.exp) > Date.now()) req.user = toAuthUser(row);
+      else if (row) await destroySession(token);
+    }
+  } catch (e) { next(e); return; }
   next();
 }
 
