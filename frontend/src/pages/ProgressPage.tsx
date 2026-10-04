@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { LESSONS } from '../data/course';
+import { COURSE_STAGES } from '../data/course';
+import { CourseSummary } from '../components/CourseMap';
 import { SONGS } from '../data/songs';
 import { useApp } from '../context/AppContext';
-import { daysWord, formatDuration, formatTime, levelFor, plural, shiftDay, weekdayShort } from '../lib';
+import { courseProgress, daysWord, formatDuration, formatTime, levelFor, plural, shiftDay, weekdayShort } from '../lib';
 import { ProLock } from '../components/ProLock';
 import { AchievementsBoard } from '../components/Achievements';
 import { usePageMeta } from '../hooks/usePageMeta';
@@ -14,8 +15,8 @@ const dayLabel = (day: string, today: string) =>
 export default function ProgressPage() {
   usePageMeta('Прогресс', 'Ваш уровень, кубки, челленджи, пройденные уроки и выученные песни.');
   const { completedLessons, learnedSongs, todaySeconds, isPro, currentLessonId, progress, history } = useApp();
-  const done = completedLessons.length;
-  const pct = Math.round((done / LESSONS.length) * 100);
+  const course = courseProgress(completedLessons);
+  const { done, pct } = course;
   const level = levelFor(done);
 
   const days = Array.from({ length: 7 }, (_, i) => shiftDay(progress.today, i - 6));
@@ -37,7 +38,7 @@ export default function ProgressPage() {
       <div className="stats">
         <div className="card stat"><span className="muted small">Текущий уровень</span><b>{level.name}</b></div>
         <div className="card stat"><span className="muted small">Курс пройден</span><b>{pct}%</b></div>
-        <div className="card stat"><span className="muted small">Уроков пройдено</span><b>{done} / {LESSONS.length}</b></div>
+        <div className="card stat"><span className="muted small">Уроков пройдено</span><b>{done} / {course.total}</b></div>
         <div className="card stat"><span className="muted small">Песен выучено</span><b>{learnedSongs.length} / {SONGS.length}</b></div>
         <div className="card stat"><span className="muted small">Занимался сегодня</span><b>{formatTime(todaySeconds)}</b>
           <span className="muted small">{isPro ? 'Pro — без лимита' : `лимит ${formatTime(progress.limitSeconds)}`}</span></div>
@@ -91,16 +92,20 @@ export default function ProgressPage() {
 
       <section className="card">
         <h3>Прогресс по курсу</h3>
-        <div className="bar big"><div style={{ width: `${pct}%` }} /></div>
-        <ul className="check-list">
-          {LESSONS.map((l) => (
-            <li key={l.id} className={completedLessons.includes(l.id) ? 'done' : ''}>
-              <span>{completedLessons.includes(l.id) ? '✓' : l.id === currentLessonId ? '▶' : '○'}</span>
-              {completedLessons.includes(l.id) || l.id === currentLessonId ? <Link to={`/learn/${l.id}`}>{l.title}</Link> : <span>{l.title}</span>}
-            </li>
-          ))}
-        </ul>
-        {currentLessonId && <Link className="btn primary" to={`/learn/${currentLessonId}`}>Продолжить обучение</Link>}
+        <CourseSummary />
+        {COURSE_STAGES.map((st) => (
+          <div key={st.no} className="pp-stage">
+            <h4>Этап {st.no}. {st.name} <span className="muted small">· {st.lessons.filter((l) => completedLessons.includes(l.id)).length} из {st.lessons.length}</span></h4>
+            <ul className="check-list">
+              {st.lessons.map((l) => (
+                <li key={l.id} className={completedLessons.includes(l.id) ? 'done' : ''}>
+                  <span>{completedLessons.includes(l.id) ? '✓' : l.id === currentLessonId ? '▶' : '○'}</span>
+                  {completedLessons.includes(l.id) || l.id === currentLessonId ? <Link to={`/learn/${l.id}`}>{l.order}. {l.title}</Link> : <span>{l.order}. {l.title}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </section>
 
       <section className="card">

@@ -19,11 +19,13 @@ export type Block =
   | { type: 'play'; title: string; task: string; from: string; to: string; mode?: 'sequence' | 'set' | 'free'; steps?: Step[]; minNotes?: number;
       labels?: LabelMode; hint?: boolean; volume?: boolean; pedal?: boolean; hard?: boolean }
   | { type: 'quiz'; question: string; options: string[]; answer: number; explain: string }
-  /** Длительности: каждая строка — набор длительностей в долях (1 = четвертная). */
+  /** Длительности: каждая строка — набор длительностей в долях (1 = четвертная, отрицательное число — пауза). */
   | { type: 'rhythm'; title?: string; caption?: string; rows: { label: string; beats: number[] }[]; total?: number }
   | { type: 'hand'; hand: 'right' | 'left'; caption?: string }
   | { type: 'checklist'; title: string; items: string[] }
-  | { type: 'metronome'; bpm: number; caption?: string };
+  | { type: 'metronome'; bpm: number; caption?: string; /** долей в такте (по умолчанию 4) */ beats?: number }
+  /** Нотный стан: ноты в скрипичном или басовом ключе (аккорд — массив нот). */
+  | { type: 'staff'; title?: string; caption?: string; clef?: 'treble' | 'bass'; notes: Step[]; names?: boolean };
 
 export interface Stage {
   id: string;
@@ -33,11 +35,24 @@ export interface Stage {
   blocks: Block[];
 }
 
+/** Уровень сложности урока */
+export type LessonLevel = 'start' | 'basic' | 'middle' | 'advanced';
+export const LESSON_LEVEL_LABEL: Record<LessonLevel, string> = { start: 'Начальный', basic: 'Базовый', middle: 'Средний', advanced: 'Продвинутый' };
+
 export interface Lesson {
   id: string;
+  /** номер урока в курсе (вычисляется из структуры курса) */
   order: number;
-  /** название блока курса, например «Знакомство с инструментом» */
+  /** название этапа курса (вычисляется из структуры курса) */
   block: string;
+  /** номер этапа курса, с 1 */
+  stageNo: number;
+  /** уровень сложности (вычисляется из этапа) */
+  level: LessonLevel;
+  /** задания для самостоятельной практики */
+  practice: string[];
+  /** ожидаемый результат урока */
+  outcome: string;
   /** id уроков, которые нужно пройти до этого */
   prerequisites: string[];
   title: string;
@@ -70,3 +85,7 @@ export interface Song {
   /** дополнительные слова для поиска (например, русское написание) */
   keywords?: string[];
 }
+
+/** Урок в исходных файлах: номер, этап, уровень и длительность вычисляются из структуры курса (data/course.ts). */
+export type LessonSource = Omit<Lesson, 'durationMin' | 'prerequisites' | 'order' | 'block' | 'stageNo' | 'level' | 'practice' | 'outcome'>
+  & { order?: number; block?: string; practice?: string[]; outcome?: string };

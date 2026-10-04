@@ -19,9 +19,10 @@ export const TRACKS: Track[] = [
     { id: 'lessons-1', at: 1, title: 'Первый шаг', desc: 'Пройти первый урок' },
     { id: 'lessons-5', at: 5, title: 'Разогрев', desc: 'Пройти 5 уроков' },
     { id: 'lessons-10', at: 10, title: 'Уверенный старт', desc: 'Пройти 10 уроков' },
-    { id: 'lessons-15', at: 15, title: 'Половина пути позади', desc: 'Пройти 15 уроков' },
-    { id: 'lessons-20', at: 20, title: 'Почти пианист', desc: 'Пройти 20 уроков' },
-    { id: 'course', at: LESSONS.length, title: 'Выпускник курса', desc: 'Пройти весь курс' },
+    { id: 'lessons-20', at: 20, title: 'Половина пути позади', desc: 'Пройти 20 уроков' },
+    { id: 'lessons-30', at: 30, title: 'Почти пианист', desc: 'Пройти 30 уроков' },
+    // id с длиной курса: кубок «весь курс» за прежний, более короткий курс не засчитывается за новый
+    { id: `course-${LESSONS.length}`, at: LESSONS.length, title: 'Выпускник курса', desc: `Пройти весь курс — все ${LESSONS.length} уроков` },
   ] },
   { id: 'streak', title: 'Заходы подряд', icon: '🔥', unit: 'дней', milestones: [
     { id: 'streak-3', at: 3, title: 'Три дня подряд', desc: 'Заходить на сайт 3 дня подряд' },
@@ -99,7 +100,9 @@ async function challenges(userId: number, today: string): Promise<Challenge[]> {
   const todaySec = practice.find((p) => p.day === today)?.seconds ?? 0;
   const weekSec = practice.reduce((a, p) => a + p.seconds, 0);
   const weekDays = practice.filter((p) => p.seconds >= 60).length;
-  const weekLessons = Number((await db.get<{ n: number }>('SELECT COUNT(*)::int AS n FROM completed_lessons WHERE user_id = ? AND completed_at >= ?', userId, monday))?.n ?? 0);
+  // completed_at хранится в UTC, а неделя считается по местному дню (APP_TZ): сравниваем по местной дате
+  const weekLessons = (await db.all<{ at: string }>('SELECT completed_at AS at FROM completed_lessons WHERE user_id = ? AND completed_at >= ?', userId, shift(monday, -1)))
+    .filter((r) => todayKey(new Date(r.at)) >= monday).length;
   const sunday = shift(monday, 6);
   const list: Omit<Challenge, 'done'>[] = [
     { id: 'day-10min', kind: 'day', title: 'Разминка дня', desc: 'Позанимайтесь сегодня 10 минут', icon: '☀️', target: 10, unit: 'мин', current: Math.min(10, Math.floor(todaySec / 60)), period: today, endsAt: today },
@@ -116,6 +119,9 @@ async function challenges(userId: number, today: string): Promise<Challenge[]> {
   return out;
 }
 
+const LESSON_IDS = new Set(LESSONS.map((l) => l.id));
+const MILESTONE_IDS = new Set(TRACKS.flatMap((t) => t.milestones.map((m) => m.id)));
+
 // ---------- сводка ----------
 export async function achievementsFor(userId: number) {
   const today = todayKey();
@@ -124,7 +130,7 @@ export async function achievementsFor(userId: number) {
   const st = streaks(visitDays, today);
   const totalSec = Number((await db.get<{ s: number }>('SELECT COALESCE(SUM(seconds), 0)::int AS s FROM practice WHERE user_id = ?', userId))?.s ?? 0);
   const values: Record<Metric, { current: number; best: number }> = {
-    lessons: { current: Number((await db.get<{ n: number }>('SELECT COUNT(*)::int AS n FROM completed_lessons WHERE user_id = ?', userId))?.n ?? 0), best: 0 },
+    lessons: { current: (await db.all<{ lesson_id: string }>('SELECT lesson_id FROM completed_lessons WHERE user_id = ?', userId)).filter((r) => LESSON_IDS.has(r.lesson_id)).length, best: 0 },
     streak: { current: st.cur, best: st.best },
     songs: { current: Number((await db.get<{ n: number }>('SELECT COUNT(*)::int AS n FROM learned_songs WHERE user_id = ?', userId))?.n ?? 0), best: 0 },
     hours: { current: Math.floor((totalSec / H) * 10) / 10, best: 0 },
@@ -136,7 +142,9 @@ export async function achievementsFor(userId: number) {
     const v = Math.max(values[t.id].current, values[t.id].best);
     for (const m of t.milestones) if (v >= m.at) await db.run('INSERT INTO user_achievements (user_id, id) VALUES (?, ?) ON CONFLICT DO NOTHING', userId, m.id);
   }
-  const got = new Map((await db.all<{ id: string; unlocked_at: string; seen: boolean }>('SELECT id, unlocked_at, seen FROM user_achievements WHERE user_id = ?', userId)).map((r) => [r.id, r]));
+  // учитываем только существующие сейчас кубки (старые id, например за прежнюю длину курса, игнорируются)
+  const got = new Map((await db.all<{ id: string; unlocked_at: string; seen: boolean }>('SELECT id, unlocked_at, seen FROM user_achievements WHERE user_id = ?', userId))
+    .filter((r) => MILESTONE_IDS.has(r.id)).map((r) => [r.id, r]));
   const tracks = TRACKS.map((t) => ({
     id: t.id, title: t.title, icon: t.icon, unit: t.unit, current: values[t.id].current, best: values[t.id].best,
     max: t.milestones[t.milestones.length - 1].at,

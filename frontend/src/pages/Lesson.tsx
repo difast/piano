@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
-import { LESSONS } from '../data/course';
+import { COURSE_STAGES, LESSONS } from '../data/course';
+import { LESSON_LEVEL_LABEL } from '../data/types';
 import { useApp } from '../context/AppContext';
-import { isLessonUnlocked } from '../lib';
+import { courseProgress, isLessonUnlocked } from '../lib';
 import { usePracticeTimer } from '../hooks/usePracticeTimer';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { track } from '../services/analytics';
@@ -60,7 +61,7 @@ export default function Lesson() {
   const record = (key: string) => (r: BlockResult) => setResults((p) => ({ ...p, [key]: r }));
   const finish = async () => {
     setBusy(true); setError('');
-    try { await completeLesson(lesson.id); setJustDone(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    try { await completeLesson(lesson.id); setJustDone(true); window.setTimeout(() => document.querySelector('[data-testid="lesson-done"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -74,7 +75,10 @@ export default function Lesson() {
       {redirectNotice && <Notice>{redirectNotice}</Notice>}
       <Link to="/learn" className="muted">← Все уроки</Link>
       <header className="lesson-head" style={{ marginTop: 14 }}>
-        <span className="block-name">{lesson.block}</span>
+        <div className="lesson-tags">
+          <span className="block-name">Этап {lesson.stageNo} из {COURSE_STAGES.length} · {lesson.block}</span>
+          <span className={`badge lv-${lesson.level}`}>{LESSON_LEVEL_LABEL[lesson.level]}</span>
+        </div>
         <h1 style={{ marginTop: 4 }}>Урок {lesson.order}. {lesson.title}</h1>
         <div className="lesson-meta">
           <span>Урок {lesson.order} из {LESSONS.length}</span><span>≈ {lesson.durationMin} мин</span><span>{lesson.stages.length} этапов</span>
@@ -82,7 +86,10 @@ export default function Lesson() {
         </div>
         <p className="lead" style={{ margin: '4px 0' }}>{lesson.description}</p>
         {stageIdx === 0 && (
-          <ul className="goals">{lesson.goals.map((g) => <li key={g}>Ты научишься: {g}</li>)}</ul>
+          <div className="lesson-goal">
+            <h3>Цель урока</h3>
+            <ul className="goals">{lesson.goals.map((g) => <li key={g}>Ты научишься: {g}</li>)}</ul>
+          </div>
         )}
       </header>
 
@@ -105,6 +112,18 @@ export default function Lesson() {
               <BlockView key={bi} block={b} onResult={record(`${stage.id}-${bi}`)} onHardDone={notifyHardDone} />
             ))}
             {last && (
+              <section className="lesson-after">
+                <div className="la-block">
+                  <h3>Задания для самостоятельной практики</h3>
+                  <ol>{lesson.practice.map((t) => <li key={t}>{t}</li>)}</ol>
+                </div>
+                <div className="la-block outcome">
+                  <h3>Ожидаемый результат</h3>
+                  <p>{lesson.outcome}</p>
+                </div>
+              </section>
+            )}
+            {last && (
               <section className="results">
                 <h3>Итоги урока</h3>
                 <ul>
@@ -118,14 +137,43 @@ export default function Lesson() {
         </>
       )}
 
-      {justDone && <Notice kind="success">🎉 Урок пройден!{next ? ' Следующий урок открыт.' : ' Вы прошли весь курс!'}</Notice>}
+      {(justDone || (done && last)) && <DoneCard lessonOrder={lesson.order} fresh={justDone} />}
       {error && <Notice kind="error">{error}</Notice>}
       <div className="stage-nav">
         <button className="btn" onClick={() => go(stageIdx - 1)} disabled={stageIdx === 0}>← Назад</button>
         {!last && <button className="btn primary" onClick={() => go(stageIdx + 1)}>Далее →</button>}
         {last && !done && <button className="btn primary" onClick={finish} disabled={busy}>{busy ? 'Сохраняем…' : 'Урок пройден'}</button>}
-        {last && done && (next ? <Link className="btn primary" to={`/learn/${next.id}`}>Следующий урок →</Link> : <Link className="btn primary" to="/songs">Перейти к песням →</Link>)}
+        {last && done && (next ? <Link className="btn primary" to={`/learn/${next.id}`}>Следующий урок: {next.order} →</Link> : <Link className="btn primary" to="/songs">Перейти к песням →</Link>)}
       </div>
     </div>
+  );
+}
+
+/** Карточка после завершения урока: прогресс по курсу и следующий урок. */
+function DoneCard({ lessonOrder, fresh }: { lessonOrder: number; fresh: boolean }) {
+  const { completedLessons } = useApp();
+  const p = courseProgress(completedLessons);
+  const next = LESSONS.find((l) => l.order === lessonOrder + 1);
+  return (
+    <section className={`done-card${p.finished ? ' finished' : ''}`} data-testid="lesson-done" aria-live="polite">
+      <h2>{p.finished ? '🏆 Курс пройден!' : fresh ? '🎉 Урок завершён!' : '✓ Урок завершён'}</h2>
+      {p.finished
+        ? <p>Поздравляем: ты прошёл все {p.total} уроков курса — от первой клавиши до «К Элизе» двумя руками.</p>
+        : fresh && <p>Отличная работа! +1 урок к твоему прогрессу.</p>}
+      <div className="dc-progress">
+        <b data-testid="done-count">{p.done} / {p.total}</b>
+        <span className="muted">уроков · {p.pct}% курса{!p.finished && ` · осталось ${p.left}`}</span>
+      </div>
+      <div className="bar big"><div style={{ width: `${p.pct}%` }} /></div>
+      {next && (
+        <div className="dc-next">
+          <span className="muted small">Следующий урок · Этап {next.stageNo} · {LESSON_LEVEL_LABEL[next.level]}</span>
+          <b>Урок {next.order}. {next.title}</b>
+          <span className="muted small">{next.description}</span>
+          <Link className="btn primary" to={`/learn/${next.id}`}>Перейти к уроку {next.order} →</Link>
+        </div>
+      )}
+      {!next && <div className="dc-next"><Link className="btn primary" to="/songs">Разучивать песни →</Link> <Link className="btn" to="/progress">Мой прогресс</Link></div>}
+    </section>
   );
 }

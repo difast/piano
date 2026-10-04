@@ -5,6 +5,7 @@ import { Quiz } from './Quiz';
 import { Metronome, RhythmBlockView } from './Rhythm';
 import { HandDiagram } from './HandDiagram';
 import { Checklist } from './Checklist';
+import { StaffView } from './Staff';
 
 export interface BlockResult { kind: 'play' | 'quiz' | 'check'; ok: boolean; detail?: string }
 
@@ -29,5 +30,6 @@ export function BlockView({ block, onResult, onHardDone }: { block: Block; onRes
     case 'hand': return <HandDiagram block={block} />;
     case 'checklist': return <Checklist block={block} onResult={(all) => onResult({ kind: 'check', ok: all })} />;
     case 'metronome': return <Metronome block={block} />;
+    case 'staff': return <StaffView block={block} />;
   }
 }

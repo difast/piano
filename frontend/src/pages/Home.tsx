@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { COURSE_BLOCKS, LESSONS } from '../data/course';
+import { COURSE_STAGES, LESSONS } from '../data/course';
+import { CourseOverview, CourseSummary } from '../components/CourseMap';
 import { SONGS } from '../data/songs';
 import { DIFFICULTY_LABEL } from '../data/types';
 import { usePageMeta } from '../hooks/usePageMeta';
@@ -84,6 +85,16 @@ export default function Home() {
         </div>
       </section>
 
+      {user && (
+        <section className="section">
+          <div className="card home-progress">
+            <h2 style={{ margin: 0 }}>Ваш прогресс</h2>
+            <CourseSummary compact />
+            <Link className="muted small" to="/learn">Все этапы и уроки →</Link>
+          </div>
+        </section>
+      )}
+
       <section className="section">
         <h2 className="section-title">Подойдёт, если…</h2>
         <div className="grid4">
@@ -115,18 +126,8 @@ export default function Home() {
 
       <section className="section">
         <h2 className="section-title">Программа курса</h2>
-        <p className="section-sub">{LESSONS.length} уроков в {COURSE_BLOCKS.length} блоках · около {Math.round(totalMin / 60)} часов занятий</p>
-        <div className="blocks-grid">
-          {COURSE_BLOCKS.map((b, bi) => (
-            <div className="card flat" key={b.name}>
-              <span className="tag">Блок {bi + 1}</span>
-              <h3>{b.name}</h3>
-              <ol className="mini-list" start={b.lessons[0].order}>
-                {b.lessons.map((l) => <li key={l.id}>{l.title}</li>)}
-              </ol>
-            </div>
-          ))}
-        </div>
+        <p className="section-sub">{LESSONS.length} уроков в {COURSE_STAGES.length} этапах — от начального уровня до продвинутого · около {Math.round(totalMin / 60)} часов занятий</p>
+        <CourseOverview />
       </section>
 
       {sample.length > 0 && (

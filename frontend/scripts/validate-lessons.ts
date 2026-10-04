@@ -1,5 +1,5 @@
 // Проверка контента курса: npx tsx scripts/validate-lessons.ts (из папки backend: npx tsx ../frontend/scripts/validate-lessons.ts)
-import { LESSONS } from '../src/data/course';
+import { COURSE_STAGES, LESSONS } from '../src/data/course';
 import { keysInRange, whiteCount } from '../src/services/notes';
 import type { Block, Step } from '../src/data/types';
 
@@ -7,10 +7,16 @@ const problems: string[] = [];
 const bad = (where: string, msg: string) => problems.push(`${where}: ${msg}`);
 const flat = (steps: Step[] = []) => steps.flatMap((s) => (Array.isArray(s) ? s : [s]));
 
+const ids = new Set<string>();
 let stages = 0, plays = 0, quizzes = 0, demos = 0, mins = 0;
 LESSONS.forEach((l, i) => {
   const w = `Урок ${l.order} «${l.title}»`;
-  if (l.id !== `l${i + 1}` || l.order !== i + 1) bad(w, 'id/order не совпадают с позицией');
+  if (l.order !== i + 1) bad(w, 'order не совпадает с позицией');
+  if (ids.has(l.id)) bad(w, 'повторяющийся id'); ids.add(l.id);
+  if (l.goals.length < 2) bad(w, 'мало целей');
+  if (l.practice.length < 2) bad(w, 'нет заданий для самостоятельной практики');
+  if (!l.outcome) bad(w, 'нет ожидаемого результата');
+  if (COURSE_STAGES.filter((s) => s.lessons.includes(l)).length !== 1) bad(w, 'урок не в одном этапе');
   if (l.durationMin < 30 || l.durationMin > 41) bad(w, `длительность ${l.durationMin} мин вне 30–40`);
   if (l.stages.length < 5) bad(w, 'слишком мало этапов');
   mins += l.durationMin;
@@ -35,8 +41,9 @@ LESSONS.forEach((l, i) => {
           if (!b.task || !b.title) bad(wb, 'нет заголовка/задания');
         }
       }
+      if (b.type === 'staff') for (const n of flat(b.notes)) if (!/^[A-G]#?[0-8]$/.test(n)) bad(wb, `неверная нота ${n} на нотном стане`);
       if (b.type === 'quiz') { quizzes++; if (b.answer < 0 || b.answer >= b.options.length || b.options.length < 2) bad(wb, 'неверный answer/options'); }
-      if (b.type === 'rhythm') for (const r of b.rows) { const sum = r.beats.reduce((a, c) => a + c, 0); if (sum !== (b.total ?? 4)) bad(wb, `строка «${r.label}»: сумма долей ${sum} ≠ ${b.total ?? 4}`); }
+      if (b.type === 'rhythm') for (const r of b.rows) { const sum = r.beats.reduce((a, c) => a + Math.abs(c), 0); if (sum !== (b.total ?? 4)) bad(wb, `строка «${r.label}»: сумма долей ${sum} ≠ ${b.total ?? 4}`); }
     });
   });
   const last = l.stages[l.stages.length - 1];

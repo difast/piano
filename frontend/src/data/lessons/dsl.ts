@@ -27,6 +27,9 @@ export const quiz = (question: string, options: string[], answer: number, explai
 export const rhythm = (title: string | undefined, rows: { label: string; beats: number[] }[], caption?: string, total = 4): Block => ({ type: 'rhythm', title, rows, caption, total });
 export const hand = (h: 'right' | 'left', caption?: string): Block => ({ type: 'hand', hand: h, caption });
 export const checklist = (title: string, items: string[]): Block => ({ type: 'checklist', title, items });
-export const metro = (bpm: number, caption?: string): Block => ({ type: 'metronome', bpm, caption });
+export const metro = (bpm: number, caption?: string, beats?: number): Block => ({ type: 'metronome', bpm, caption, beats });
+/** Нотный стан: staff('Заголовок', 'C4 E4 G4', { clef: 'bass', names: true }) */
+export const staff = (title: string | undefined, notes: string, o: { clef?: 'treble' | 'bass'; names?: boolean; caption?: string } = {}): Block =>
+  ({ type: 'staff', title, notes: S(notes), clef: o.clef ?? 'treble', names: o.names, caption: o.caption });
 
 export const stage = (id: string, title: string, minutes: number, ...blocks: Block[]): Stage => ({ id, title, minutes, blocks });

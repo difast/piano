@@ -8,16 +8,25 @@ export const FREE_DAILY_LIMIT_SEC = 15 * 60;
 /** Версия юридических документов — записывается вместе с согласием. Совпадает с frontend/src/data/legal.ts */
 export const LEGAL_VERSION = '2026-10-03';
 
-export const LESSONS: { id: string; prerequisites: string[] }[] = Array.from({ length: 24 }, (_, i) => ({
-  id: `l${i + 1}`,
-  prerequisites: i === 0 ? [] : [`l${i}`],
-}));
-
 /**
- * Миграция курса с 12 на 24 урока: сколько новых уроков считать пройденными,
- * если пользователь подряд прошёл k старых уроков (индекс k-1).
+ * Порядок уроков курса (8 этапов по 5 уроков). id постоянные — на них завязан прогресс,
+ * новые уроки l25–l40 вставлены в нужные места. Каждый урок открывается после предыдущего.
+ * Должно совпадать с frontend/src/data/course.ts (npm run check:sync).
  */
-export const OLD_TO_NEW_COMPLETED = [1, 4, 6, 7, 8, 11, 14, 17, 19, 20, 22, 24];
+const LESSON_ORDER = [
+  'l1', 'l2', 'l3', 'l4', 'l5',
+  'l6', 'l7', 'l8', 'l25', 'l9',
+  'l10', 'l11', 'l12', 'l26', 'l27',
+  'l13', 'l14', 'l15', 'l16', 'l17',
+  'l28', 'l29', 'l30', 'l31', 'l32',
+  'l18', 'l19', 'l20', 'l33', 'l34',
+  'l21', 'l22', 'l23', 'l35', 'l24',
+  'l36', 'l37', 'l38', 'l39', 'l40',
+];
+export const LESSONS: { id: string; prerequisites: string[] }[] = LESSON_ORDER.map((id, i) => ({
+  id,
+  prerequisites: i === 0 ? [] : [LESSON_ORDER[i - 1]],
+}));
 
 /** Песни, доступные на Free (остальные — Pro). Должно совпадать с frontend/src/data/config.ts. */
 export const FREE_SONG_IDS: string[] = ['ode-to-joy', 'twinkle', 'jingle', 'fur-elise'];

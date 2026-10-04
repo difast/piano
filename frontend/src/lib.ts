@@ -14,6 +14,24 @@ export const isLessonUnlocked = (lesson: Lesson, completed: string[]) =>
 export const currentLesson = (completed: string[]) =>
   LESSONS.find((l) => !completed.includes(l.id) && isLessonUnlocked(l, completed)) ?? null;
 
+export type LessonStatus = 'locked' | 'available' | 'started' | 'done';
+export const LESSON_STATUS_LABEL: Record<LessonStatus, string> = { locked: 'Заблокирован', available: 'Доступен', started: 'Начат', done: 'Завершён' };
+
+/** Статус урока: завершён / начат (есть сохранённый этап) / доступен / заблокирован. */
+export const lessonStatus = (lesson: Lesson, completed: string[], stages: Record<string, number> = {}): LessonStatus =>
+  completed.includes(lesson.id) ? 'done'
+    : !isLessonUnlocked(lesson, completed) ? 'locked'
+      : stages[lesson.id] !== undefined ? 'started' : 'available';
+
+/** Прогресс по курсу — всё считается от фактического числа уроков в данных. */
+export function courseProgress(completed: string[]) {
+  const total = LESSONS.length;
+  const done = LESSONS.filter((l) => completed.includes(l.id)).length;
+  const current = currentLesson(completed);
+  const next = current ? LESSONS.find((l) => l.order === current.order + 1) ?? null : null;
+  return { done, total, left: total - done, pct: Math.round((done / total) * 100), finished: done === total, current, next };
+}
+
 /** Приводит строку к виду для поиска: регистр, ё/е, пробелы. */
 export const normalize = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 

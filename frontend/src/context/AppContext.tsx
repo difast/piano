@@ -257,10 +257,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (lesson?.milestone) msgs.push(lesson.milestone);
     else if (count === 1) msgs.push('Отличное начало. Первый урок позади.');
     else if (count === 3) msgs.push('Уже 3 урока. Продолжай в том же темпе.');
-    else if (count === 12) msgs.push('Половина курса пройдена!');
+    else if (count === LESSONS.length) msgs.push(`Курс пройден! Все ${LESSONS.length} уроков завершены.`);
+    else if (count === Math.floor(LESSONS.length / 2)) msgs.push(`Половина курса пройдена: ${count} из ${LESSONS.length}!`);
     else if (lessonsThisSession.current === 2) msgs.push('Два урока подряд — отличный темп.');
     if (levelFor(count).name !== levelFor(before).name) msgs.push(`Новый уровень: ${levelFor(count).name}.`);
-    else if (lesson && next && next.block !== lesson.block) msgs.push(`Открыта новая тема: «${next.block}».`);
+    else if (lesson && next && next.stageNo !== lesson.stageNo) msgs.push(`Открыт этап ${next.stageNo}: «${next.block}».`);
     msgs.slice(0, 2).forEach((m, i) => window.setTimeout(() => toast(m, 'success'), i * 900));
   }, [apply, toast]);
 
