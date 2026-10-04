@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { DIFFICULTY_LABEL, type Difficulty } from '../data/types';
 import { normalize, plural } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
-import { coverFor, useScores } from '../hooks/useScores';
+import { coverFor, scoreCover, useScores } from '../hooks/useScores';
+import { Cover } from './Songs';
 import { Empty, ErrorBox, Spinner } from '../components/Status';
 import { useApp } from '../context/AppContext';
 import { useUpsell } from '../context/UpsellContext';
@@ -68,7 +69,7 @@ export default function Scores() {
               {list.map((s) => (
                 <Link key={s.id} to={`/scores/${s.id}`} className={`song-card card${!isPro && !s.free ? ' locked' : ''}`}
                   onClick={(e) => { if (!isPro && !s.free) { e.preventDefault(); offerPro({ title: `«${s.title}» — в Pro`, text: `На Free для просмотра открыто ${freeCount} ${plural(freeCount, 'нотный лист', 'нотных листа', 'нотных листов')}. С Pro — все ноты и скачивание PDF.`, place: 'score_card' }); } }}>
-                  <div className={`cover${!isPro && !s.free ? ' locked' : ''}`} style={{ background: coverFor(s.id) }}><span>♪</span>{!isPro && !s.free && <span className="cover-pro" aria-label="Доступно в Pro">🔒 PRO</span>}</div>
+                  <Cover cover={coverFor(s.id)} src={scoreCover(s.id)} title="♪" locked={!isPro && !s.free} />
                   <b className="song-title">{s.title}</b>
                   <span className="muted small">{s.composer}</span>
                   <p className="muted small clamp3">{s.description}</p>

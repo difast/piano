@@ -22,3 +22,6 @@ const COVERS = [
 ];
 /** Обложка-заглушка по id (когда появятся настоящие обложки — достаточно добавить поле в каталог). */
 export const coverFor = (id: string) => COVERS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COVERS.length];
+
+/** Путь к обложке нот (scripts/make-covers.ts). */
+export const scoreCover = (id: string) => `/covers/scores/${id}.svg`;

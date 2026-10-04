@@ -9,14 +9,22 @@ import { normalize, plural } from '../lib';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Empty } from '../components/Status';
 
-export function Cover({ cover, coverUrl, title, locked }: { cover: string; coverUrl?: string; title: string; locked?: boolean }) {
+/** Обложка: сгенерированная картинка из public/covers (scripts/make-covers.ts), при её отсутствии — градиент с буквой. */
+export function Cover({ cover, coverUrl, title, locked, src }: { cover: string; coverUrl?: string; title: string; locked?: boolean; src?: string }) {
+  const [broken, setBroken] = useState(false);
+  const url = coverUrl ?? src;
   return (
-    <div className={`cover${locked ? ' locked' : ''}`} style={{ background: coverUrl ? `center/cover url(${coverUrl})` : cover }}>
-      {!coverUrl && <span>{title.slice(0, 1)}</span>}
+    <div className={`cover${locked ? ' locked' : ''}`} style={{ background: cover }}>
+      {url && !broken
+        ? <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
+        : <span>{title.slice(0, 1)}</span>}
       {locked && <span className="cover-pro" aria-label="Доступно в Pro">🔒 PRO</span>}
     </div>
   );
 }
+
+/** Путь к обложке песни. */
+export const songCover = (id: string) => `/covers/songs/${id}.svg`;
 
 export default function Songs() {
   usePageMeta('Песни', 'Каталог популярных песен для пианино трёх уровней сложности: начинающий, средний, продвинутый. Поиск по названию и исполнителю.');
@@ -60,7 +68,7 @@ export default function Songs() {
           {list.map((s) => (
             <Link key={s.id} to={`/songs/${s.id}`} className={`song-card card${isLocked(s.id) ? ' locked' : ''}`}
               onClick={(e) => { if (isLocked(s.id)) { e.preventDefault(); offerPro({ title: `«${s.title}» — в Pro`, text: `На Free открыто ${FREE_SONG_IDS.length} ${plural(FREE_SONG_IDS.length, 'песня', 'песни', 'песен')}. С Pro доступен весь каталог.`, place: 'song_card' }); } }}>
-              <Cover cover={s.cover} coverUrl={s.coverUrl} title={s.title} locked={isLocked(s.id)} />
+              <Cover cover={s.cover} coverUrl={s.coverUrl} src={songCover(s.id)} title={s.title} locked={isLocked(s.id)} />
               <b>{s.title}</b>
               <span className="muted small">{s.artist}</span>
               <div className="row">

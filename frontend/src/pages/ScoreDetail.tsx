@@ -8,7 +8,8 @@ import { usePageMeta } from '../hooks/usePageMeta';
 import { ErrorBox, Spinner } from '../components/Status';
 import { ScoreDownload } from '../components/ScoreDownload';
 import { ProLock } from '../components/ProLock';
-import { coverFor, useScores } from '../hooks/useScores';
+import { coverFor, scoreCover, useScores } from '../hooks/useScores';
+import { Cover } from './Songs';
 
 export default function ScoreDetail() {
   const { id } = useParams();
@@ -37,7 +38,7 @@ export default function ScoreDetail() {
       <div className="page-narrow">
         <Link to="/scores" className="muted">← Все ноты</Link>
         {info && <div className="song-head">
-          <div className="cover locked" style={{ background: coverFor(info.id) }}><span>♪</span><span className="cover-pro">🔒 PRO</span></div>
+          <Cover cover={coverFor(info.id)} src={scoreCover(info.id)} title="♪" locked />
           <div><h1>{info.title}</h1><p className="muted">{info.composer}</p><span className={`badge lvl-${info.difficulty}`}>{DIFFICULTY_LABEL[info.difficulty]}</span></div>
         </div>}
         <ProLock title="Эти ноты доступны в Pro" place="score">
@@ -54,7 +55,7 @@ export default function ScoreDetail() {
     <div className="page-narrow">
       <Link to="/scores" className="muted">← Все ноты</Link>
       <div className="song-head">
-        <div className="cover" style={{ background: coverFor(score.id) }}><span>♪</span></div>
+        <Cover cover={coverFor(score.id)} src={scoreCover(score.id)} title="♪" />
         <div>
           <h1>{score.title}</h1>
           <p className="muted">{score.composer}</p>

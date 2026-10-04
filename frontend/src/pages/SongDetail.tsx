@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { usePracticeTimer } from '../hooks/usePracticeTimer';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { track } from '../services/analytics';
-import { Cover } from './Songs';
+import { Cover, songCover } from './Songs';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { Piano } from '../components/Piano';
 import { ScoreDownload } from '../components/ScoreDownload';
@@ -46,7 +46,7 @@ export default function SongDetail() {
     <div className="page-narrow">
       <Link to="/songs" className="muted">← Все песни</Link>
       <div className="song-head">
-        <Cover cover={song.cover} coverUrl={song.coverUrl} title={song.title} locked={locked} />
+        <Cover cover={song.cover} coverUrl={song.coverUrl} src={songCover(song.id)} title={song.title} locked={locked} />
         <div>
           <h1>{song.title}</h1>
           <p className="muted">{song.artist}</p>

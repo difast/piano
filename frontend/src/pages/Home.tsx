@@ -7,7 +7,7 @@ import { DIFFICULTY_LABEL } from '../data/types';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { track } from '../services/analytics';
 import { Piano } from '../components/Piano';
-import { Cover } from './Songs';
+import { Cover, songCover } from './Songs';
 import { useBilling } from '../hooks/useBilling';
 import { ProPricing } from '../components/ProPricing';
 import { FREE_SONG_IDS } from '../data/config';
@@ -136,7 +136,7 @@ export default function Home() {
           <div className="song-grid">
             {sample.map((s) => (
               <Link key={s.id} to={`/songs/${s.id}`} className="song-card card">
-                <Cover cover={s.cover} coverUrl={s.coverUrl} title={s.title} />
+                <Cover cover={s.cover} coverUrl={s.coverUrl} src={songCover(s.id)} title={s.title} />
                 <b className="song-title">{s.title}</b>
                 <span className="muted small">{s.artist}</span>
                 <div className="row"><span className={`badge lvl-${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span></div>

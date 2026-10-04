@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Любовный сон №3 — Ф. Лист">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b0711"/><stop offset="1" stop-color="#be123c"/></linearGradient>
+  <radialGradient id="halo"><stop offset="0" stop-color="#fda4af" stop-opacity=".9"/><stop offset="1" stop-color="#fda4af" stop-opacity="0"/></radialGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/>
+<circle cx="300" cy="230" r="230" fill="url(#halo)" opacity=".6"/><path d="M240 360 C 230 280, 330 230, 290 120 C 360 210, 380 290, 330 360 Z" fill="#ffe4e6" opacity="0.18" filter="url(#soft)"/><path d="M300 360 C 290 280, 360 230, 330 140 C 390 210, 400 290, 370 360 Z" fill="#ffe4e6" opacity="0.28" filter="url(#soft)"/><path d="M360 360 C 350 280, 390 230, 370 160 C 420 210, 420 290, 410 360 Z" fill="#ffe4e6" opacity="0.38" filter="url(#soft)"/>
+<path d="M60 330 C86.7 306.7, 166.7 203.3, 220 190 C273.3 176.7, 326.7 226.7, 380 250 C433.3 273.3, 513.3 316.7, 540 330" fill="none" stroke="#fda4af" stroke-width="10" stroke-linecap="round" opacity=".25" filter="url(#soft)"/><path d="M60 330 C86.7 306.7, 166.7 203.3, 220 190 C273.3 176.7, 326.7 226.7, 380 250 C433.3 273.3, 513.3 316.7, 540 330" fill="none" stroke="#ffe4e6" stroke-width="3" stroke-linecap="round" opacity=".9"/><circle cx="60" cy="330" r="6" fill="#ffe4e6"/><circle cx="60" cy="330" r="12" fill="#ffe4e6" opacity=".18"/><circle cx="220" cy="190" r="6" fill="#ffe4e6"/><circle cx="220" cy="190" r="12" fill="#ffe4e6" opacity=".18"/><circle cx="380" cy="250" r="6" fill="#ffe4e6"/><circle cx="380" cy="250" r="12" fill="#ffe4e6" opacity=".18"/><circle cx="540" cy="330" r="6" fill="#ffe4e6"/><circle cx="540" cy="330" r="12" fill="#ffe4e6" opacity=".18"/>
+<rect width="600" height="600" fill="url(#shade)"/>
+<rect width="600" height="600" filter="url(#grain)"/>
+<g transform="translate(40 40)">
+  <rect width="34" height="22" rx="4" fill="#fff" opacity=".95"/>
+  <rect x="7" y="0" width="5" height="13" fill="#111"/><rect x="15" y="0" width="5" height="13" fill="#111"/><rect x="25" y="0" width="5" height="13" fill="#111"/>
+  <text x="44" y="17" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="1.5" fill="#fff" opacity=".95">PIANO LAB</text>
+</g>
+
+<g font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" fill="#fff">
+  <text x="40" y="432" font-size="54" font-weight="800" letter-spacing="-1">Любовный сон</text>
+  <text x="40" y="490" font-size="54" font-weight="800" letter-spacing="-1">№3</text>
+  <text x="40" y="534" font-size="24" font-weight="500" opacity=".82">Ф. Лист</text>
+</g>
+</svg>

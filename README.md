@@ -106,6 +106,14 @@ npm run add-score -- --file ~/Downloads/minuet.pdf --id minuet-in-g --title "М�
 ```
 Скрипт копирует PDF без изменений и добавляет/обновляет запись. `--songId` связывает ноты с песней (блок «Ноты для фортепиано» на странице песни).
 
+## Обложки песен и нот
+Векторные обложки в едином стиле лежат в `frontend/public/covers/songs/<id>.svg` и `frontend/public/covers/scores/<id>.svg`.
+Генерируются скриптом (тема и мотив — в `THEMES` внутри скрипта; у песен с нотами рисуется линия их мелодии):
+```bash
+cd frontend && ../backend/node_modules/.bin/tsx scripts/make-covers.ts
+```
+Добавили песню или ноты — перезапустите скрипт. Своя картинка: укажите `coverUrl` у песни в `frontend/src/data/songs.ts`.
+
 ## Курс и уроки
 Уроки лежат в `frontend/src/data/lessons/*.ts` (24 урока, у каждого этапы и блоки: текст, схема клавиш, упражнение, тест, ритм, метроном, чек-лист).
 Проверка контента: `cd backend && npx tsx ../frontend/scripts/validate-lessons.ts`.

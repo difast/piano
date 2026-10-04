@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="River Flows in You — Yiruma">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#064e3b"/><stop offset="1" stop-color="#14b8a6"/></linearGradient>
+  <radialGradient id="halo"><stop offset="0" stop-color="#99f6e4" stop-opacity=".9"/><stop offset="1" stop-color="#99f6e4" stop-opacity="0"/></radialGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/>
+<path d="M-20 120 C 100 86, 200 154, 320 120 S 520 86, 640 120" fill="none" stroke="#ccfbf1" stroke-width="1.5" opacity="0.2"/><path d="M-20 162 C 100 128, 200 196, 320 162 S 520 128, 640 162" fill="none" stroke="#ccfbf1" stroke-width="1.9" opacity="0.3"/><path d="M-20 204 C 100 170, 200 238, 320 204 S 520 170, 640 204" fill="none" stroke="#ccfbf1" stroke-width="2.2" opacity="0.3"/><path d="M-20 246 C 100 212, 200 280, 320 246 S 520 212, 640 246" fill="none" stroke="#ccfbf1" stroke-width="2.6" opacity="0.4"/><path d="M-20 288 C 100 254, 200 322, 320 288 S 520 254, 640 288" fill="none" stroke="#ccfbf1" stroke-width="2.9" opacity="0.5"/><path d="M-20 330 C 100 296, 200 364, 320 330 S 520 296, 640 330" fill="none" stroke="#ccfbf1" stroke-width="3.3" opacity="0.5"/><path d="M-20 372 C 100 338, 200 406, 320 372 S 520 338, 640 372" fill="none" stroke="#ccfbf1" stroke-width="3.6" opacity="0.6"/>
+<path d="M60 252.2 C70 254.8, 100 267.8, 120 267.8 C140 267.8, 160 252.2, 180 252.2 C200 252.2, 220 267.8, 240 267.8 C260 267.8, 280 241.9, 300 252.2 C320 262.6, 340 330, 360 330 C380 330, 400 270.4, 420 252.2 C440 234.1, 460 231.5, 480 221.1 C500 210.7, 530 195.2, 540 190" fill="none" stroke="#99f6e4" stroke-width="10" stroke-linecap="round" opacity=".25" filter="url(#soft)"/><path d="M60 252.2 C70 254.8, 100 267.8, 120 267.8 C140 267.8, 160 252.2, 180 252.2 C200 252.2, 220 267.8, 240 267.8 C260 267.8, 280 241.9, 300 252.2 C320 262.6, 340 330, 360 330 C380 330, 400 270.4, 420 252.2 C440 234.1, 460 231.5, 480 221.1 C500 210.7, 530 195.2, 540 190" fill="none" stroke="#ccfbf1" stroke-width="3" stroke-linecap="round" opacity=".9"/><circle cx="60" cy="252.2" r="6" fill="#ccfbf1"/><circle cx="60" cy="252.2" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="120" cy="267.8" r="6" fill="#ccfbf1"/><circle cx="120" cy="267.8" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="180" cy="252.2" r="6" fill="#ccfbf1"/><circle cx="180" cy="252.2" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="240" cy="267.8" r="6" fill="#ccfbf1"/><circle cx="240" cy="267.8" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="300" cy="252.2" r="6" fill="#ccfbf1"/><circle cx="300" cy="252.2" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="360" cy="330" r="6" fill="#ccfbf1"/><circle cx="360" cy="330" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="420" cy="252.2" r="6" fill="#ccfbf1"/><circle cx="420" cy="252.2" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="480" cy="221.1" r="6" fill="#ccfbf1"/><circle cx="480" cy="221.1" r="12" fill="#ccfbf1" opacity=".18"/><circle cx="540" cy="190" r="6" fill="#ccfbf1"/><circle cx="540" cy="190" r="12" fill="#ccfbf1" opacity=".18"/>
+<rect width="600" height="600" fill="url(#shade)"/>
+<rect width="600" height="600" filter="url(#grain)"/>
+<g transform="translate(40 40)">
+  <rect width="34" height="22" rx="4" fill="#fff" opacity=".95"/>
+  <rect x="7" y="0" width="5" height="13" fill="#111"/><rect x="15" y="0" width="5" height="13" fill="#111"/><rect x="25" y="0" width="5" height="13" fill="#111"/>
+  <text x="44" y="17" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="1.5" fill="#fff" opacity=".95">PIANO LAB</text>
+</g>
+
+<g font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" fill="#fff">
+  <text x="40" y="432" font-size="54" font-weight="800" letter-spacing="-1">River Flows in</text>
+  <text x="40" y="490" font-size="54" font-weight="800" letter-spacing="-1">You</text>
+  <text x="40" y="534" font-size="24" font-weight="500" opacity=".82">Yiruma</text>
+</g>
+</svg>

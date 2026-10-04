@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600" role="img" aria-label="Nuvole Bianche — Ludovico Einaudi">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64748b"/><stop offset="1" stop-color="#e2e8f0"/></linearGradient>
+  <radialGradient id="halo"><stop offset="0" stop-color="#f8fafc" stop-opacity=".9"/><stop offset="1" stop-color="#f8fafc" stop-opacity="0"/></radialGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/>
+<g opacity="0.8" filter="url(#soft)"><ellipse cx="74.9" cy="193.6" rx="149.3" ry="47.8" fill="#ffffff"/><ellipse cx="22.7" cy="166.7" rx="67.2" ry="44.8" fill="#ffffff"/><ellipse cx="112.2" cy="156.3" rx="74.6" ry="52.2" fill="#ffffff"/></g><g opacity="0.5" filter="url(#soft)"><ellipse cx="91.7" cy="254.6" rx="194.2" ry="62.2" fill="#ffffff"/><ellipse cx="23.7" cy="219.6" rx="87.4" ry="58.3" fill="#ffffff"/><ellipse cx="140.2" cy="206" rx="97.1" ry="68" fill="#ffffff"/></g><g opacity="0.7" filter="url(#soft)"><ellipse cx="217.7" cy="303.4" rx="134.8" ry="43.1" fill="#ffffff"/><ellipse cx="170.6" cy="279.2" rx="60.6" ry="40.4" fill="#ffffff"/><ellipse cx="251.4" cy="269.7" rx="67.4" ry="47.2" fill="#ffffff"/></g><g opacity="0.7" filter="url(#soft)"><ellipse cx="235.9" cy="318.1" rx="201.9" ry="64.6" fill="#ffffff"/><ellipse cx="165.2" cy="281.8" rx="90.9" ry="60.6" fill="#ffffff"/><ellipse cx="286.4" cy="267.6" rx="101" ry="70.7" fill="#ffffff"/></g><g opacity="0.7" filter="url(#soft)"><ellipse cx="413" cy="268.8" rx="209.6" ry="67.1" fill="#ffffff"/><ellipse cx="339.7" cy="231.1" rx="94.3" ry="62.9" fill="#ffffff"/><ellipse cx="465.4" cy="216.4" rx="104.8" ry="73.3" fill="#ffffff"/></g><g opacity="0.4" filter="url(#soft)"><ellipse cx="226.5" cy="156.9" rx="157.4" ry="50.4" fill="#ffffff"/><ellipse cx="171.4" cy="128.6" rx="70.8" ry="47.2" fill="#ffffff"/><ellipse cx="265.9" cy="117.6" rx="78.7" ry="55.1" fill="#ffffff"/></g>
+
+<rect width="600" height="600" fill="url(#shade)"/>
+<rect width="600" height="600" filter="url(#grain)"/>
+<g transform="translate(40 40)">
+  <rect width="34" height="22" rx="4" fill="#fff" opacity=".95"/>
+  <rect x="7" y="0" width="5" height="13" fill="#111"/><rect x="15" y="0" width="5" height="13" fill="#111"/><rect x="25" y="0" width="5" height="13" fill="#111"/>
+  <text x="44" y="17" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="1.5" fill="#fff" opacity=".95">PIANO LAB</text>
+</g>
+
+<g font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" fill="#fff">
+  <text x="40" y="490" font-size="54" font-weight="800" letter-spacing="-1">Nuvole Bianche</text>
+  <text x="40" y="534" font-size="24" font-weight="500" opacity=".82">Ludovico Einaudi</text>
+</g>
+</svg>

@@ -21,9 +21,11 @@ export async function initPush() {
       keys = JSON.parse((await db.get<{ value: string }>("SELECT value FROM kv WHERE key = 'vapid'"))!.value);
     }
   }
-  const subject = (process.env.VAPID_SUBJECT || (process.env.SUPPORT_EMAIL || process.env.SMTP_USER ? `mailto:${process.env.SUPPORT_EMAIL || process.env.SMTP_USER}` : FRONTEND || 'mailto:admin@example.com')).trim();
-  webpush.setVapidDetails(subject, keys!.publicKey, keys!.privateKey);
-  VAPID = keys;
+  const mail = (process.env.SUPPORT_EMAIL || process.env.SMTP_USER || '').trim();
+  // subject обязан быть https: или mailto: — иначе берём запасной вариант
+  const subject = (process.env.VAPID_SUBJECT || (mail ? `mailto:${mail}` : /^https:/.test(FRONTEND) ? FRONTEND : 'mailto:noreply@piano-lab.ru')).trim();
+  try { webpush.setVapidDetails(subject, keys!.publicKey, keys!.privateKey); VAPID = keys; }
+  catch (e) { console.error('[push] уведомления в браузере выключены:', (e as Error).message); }   // сервер работает и без них
 }
 export const pushPublicKey = () => VAPID?.publicKey ?? '';
 
