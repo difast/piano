@@ -48,11 +48,24 @@
           box.querySelector('button').onclick = function () { location.reload(); };
           document.body.appendChild(box);
         }
+        var last = '';
+        var origErr = console.error;
+        console.error = function () {
+          try { last = Array.prototype.map.call(arguments, function (x) { return x && x.stack ? x.stack : String(x); }).join(' ').slice(0, 1500); } catch (_) { /* ничего */ }
+          return origErr.apply(console, arguments);
+        };
         window.addEventListener('error', function (e) {
           var t = e.target;
           if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) show('Не загрузился файл: ' + (t.src || t.href));
-          else if (e.message) setTimeout(function () { show('Ошибка: ' + e.message); }, 1500);
+          else if (e.message) { last = e.message + (e.error && e.error.stack ? '\n' + e.error.stack : ''); setTimeout(function () { show('Ошибка: ' + last); }, 1500); }
         }, true);
+        window.addEventListener('unhandledrejection', function (e) { var r = e.reason; last = 'Promise: ' + (r && (r.stack || r.message) || r); });
+        // приложение было на экране и пропало — показываем последнюю ошибку
+        var root = document.getElementById('root'), had = false;
+        if (window.MutationObserver && root) new MutationObserver(function () {
+          if (root.children.length) had = true;
+          else if (had) setTimeout(function () { if (!root.children.length) show('Приложение остановилось. ' + (last || 'Причина не определена')); }, 3000);
+        }).observe(root, { childList: true });
         setTimeout(function () { show('Приложение не запустилось за 15 секунд'); }, 15000);
       })();
     </script>
