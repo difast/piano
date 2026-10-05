@@ -11,7 +11,7 @@ import { achievementsFor, attachReferral, markSeen, recordVisit, referralCode } 
 import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
-import { adminEnabled, charts, dashboard, marketing, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
+import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
 import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
@@ -380,14 +380,24 @@ api.post('/mkt/click', async (req, res) => {
   catch (e) { if (e instanceof MarketingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
 });
 
-// ---- Админ-кабинет: только вошедший администратор (ADMIN_EMAILS + подтверждённая почта), иначе 404 ----
+// ---- Админ-кабинет: вход по паролю ADMIN_PASSWORD (или аккаунт из ADMIN_EMAILS), иначе 404 ----
+api.post('/admin/login', noStore, async (req, res) => {
+  // не больше 5 попыток за 15 минут с одного адреса и 30 в час всего
+  if (!rateLimit(`admlogin:${req.ip}`, 5, 15 * 60_000) || !rateLimit('admlogin:all', 30, 3600_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
+  if (!checkAdminPassword(req.body?.password)) {
+    await new Promise((r) => setTimeout(r, 500));   // замедляем подбор
+    res.status(401).json({ error: 'Неверный пароль' }); return;
+  }
+  res.json({ token: await createAdminSession() });
+});
+api.post('/admin/logout', noStore, async (req, res) => { await destroyAdminSession(req); res.json({ ok: true }); });
 const admin = express.Router();
-admin.use(requireAdmin);
-admin.get('/me', (req, res) => { res.json({ email: req.user!.email }); });
+admin.use(noStore, requireAdmin);
+admin.get('/me', (req, res) => { res.json({ email: res.locals.adminId ? req.user?.email : null }); });
 admin.get('/dashboard', async (_req, res) => { res.json(await dashboard()); });
 admin.get('/users', async (req, res) => { res.json(await usersList(req.query)); });
 admin.post('/users/:id/block', async (req, res) => {
-  const r = await setBlocked(req.user!.id, Number(req.params.id), req.body?.blocked === true);
+  const r = await setBlocked(Number(res.locals.adminId), Number(req.params.id), req.body?.blocked === true);
   if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
   res.json({ ok: true });
 });
@@ -424,7 +434,7 @@ if (process.env.NOTIFY_SCHEDULER !== '0') startScheduler();
 app.listen(port, async () => {
   console.log(`Server: http://localhost:${port}`);
   console.log(`Почта (SMTP): ${await verifyMail()}`);
-  console.log(adminEnabled() ? 'Админ-кабинет: включён (ADMIN_EMAILS)' : 'Админ-кабинет: выключен — не задана ADMIN_EMAILS');
+  console.log(`Админ-кабинет: ${adminStatus()}`);
   const b = billingInfo();
   console.log(b.enabled ? `Оплата ЮKassa: включена (тарифов: ${b.plans.length})` : `Оплата ЮKassa: выключена — не заданы: ${b.missing.join(', ')}`);
 });

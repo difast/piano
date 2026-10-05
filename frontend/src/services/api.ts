@@ -65,6 +65,10 @@ const TOKEN_KEY = 'piano_session';
 export const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
 export const setToken = (t: string | null) => { try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch { /* хранилище недоступно — остаётся cookie */ } };
 const authHeaders = (): Record<string, string> => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
+// Токен админ-сессии (вход по паролю админки) — отдельно от входа пользователя, только для запросов /admin
+const ADMIN_KEY = 'piano_admin';
+export const getAdminToken = () => { try { return localStorage.getItem(ADMIN_KEY); } catch { return null; } };
+export const setAdminToken = (t: string | null) => { try { if (t) localStorage.setItem(ADMIN_KEY, t); else localStorage.removeItem(ADMIN_KEY); } catch { /* хранилище недоступно */ } };
 
 export const MSG_OFFLINE = 'Не удаётся связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
 export const MSG_UNAVAILABLE = 'Сервис временно недоступен. Попробуйте через пару минут.';
@@ -74,7 +78,7 @@ async function request<T>(method: string, path: string, body?: unknown, keepaliv
   try {
     res = await fetch(`${API_URL}/api${path}`, {
       method, keepalive, credentials: API_URL ? 'include' : 'same-origin',
-      headers: { ...authHeaders(), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { ...authHeaders(), ...(path.startsWith('/admin') && getAdminToken() ? { Authorization: `Bearer ${getAdminToken()}` } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -168,5 +172,7 @@ export const api = {
     const qs = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString();
     return request<T>('GET', `/admin${path}${qs ? `?${qs}` : ''}`);
   },
+  adminLogin: async (password: string) => { const r = await request<{ token: string }>('POST', '/admin/login', { password }); setAdminToken(r.token); return r; },
+  adminLogout: async () => { try { await request<{ ok: true }>('POST', '/admin/logout', {}); } finally { setAdminToken(null); } },
   adminBlock: (userId: number, blocked: boolean) => request<{ ok: true }>('POST', `/admin/users/${userId}/block`, { blocked }),
 };

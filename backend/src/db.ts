@@ -236,6 +236,13 @@ await db.run(`CREATE TABLE IF NOT EXISTS mkt_clicks (
     created_at TEXT NOT NULL DEFAULT ${NOW}
   )`);
 await db.run('CREATE INDEX IF NOT EXISTS idx_mkt_clicks_created ON mkt_clicks(created_at)');
+/** сессии входа в админ-кабинет по паролю ADMIN_PASSWORD (токен хранится только в виде хеша) */
+await db.run(`CREATE TABLE IF NOT EXISTS admin_sessions (
+    token_hash TEXT PRIMARY KEY,
+    expires_at BIGINT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`);
+await db.run('DELETE FROM admin_sessions WHERE expires_at < ?', Date.now());
 /** первый маркетинговый переход, после которого пользователь зарегистрировался */
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS mkt_click_id INTEGER REFERENCES mkt_clicks(id) ON DELETE SET NULL');
 /** источник сохраняется и в платеже — связь остаётся даже после удаления аккаунта */

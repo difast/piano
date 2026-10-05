@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useApp } from '../../context/AppContext';
-import { api, ApiError } from '../../services/api';
+import { api, ApiError, getAdminToken, setAdminToken } from '../../services/api';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import './admin.css';
 
@@ -468,23 +468,20 @@ function MarketingTab() {
 }
 
 // ---------- вход и каркас ----------
-function LoginForm() {
-  const { login } = useApp();
-  const [email, setEmail] = useState('');
+function LoginForm({ onDone }: { onDone: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setError('');
-    try { await login(email, password); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+    try { await api.adminLogin(password); setPassword(''); onDone(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };
   return (
     <form className="ad-card ad-login" onSubmit={submit}>
-      <h1>Вход</h1>
-      <label className="ad-field"><span>Email</span><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-      <label className="ad-field"><span>Пароль</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+      <h1>Вход в админ-кабинет</h1>
+      <label className="ad-field"><span>Пароль</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
       {error && <p className="ad-err">{error}</p>}
-      <button className="ad-btn primary" disabled={busy}>{busy ? 'Входим…' : 'Войти'}</button>
+      <button className="ad-btn primary" disabled={busy || !password}>{busy ? 'Проверяем…' : 'Войти'}</button>
     </form>
   );
 }
@@ -495,8 +492,8 @@ const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === window.location.h
 
 export default function Admin() {
   usePageMeta('Админ-кабинет', 'Служебная страница.');
-  const { status, user, logout } = useApp();
-  const [access, setAccess] = useState<'checking' | 'ok' | 'denied' | 'verify'>('checking');
+  const { user } = useApp();
+  const [access, setAccess] = useState<'checking' | 'ok' | 'login' | 'verify'>('checking');
   const [tab, setTab] = useState<Tab>(tabFromHash);
   useEffect(() => {
     // служебная страница не индексируется
@@ -505,24 +502,23 @@ export default function Admin() {
     window.addEventListener('hashchange', onHash);
     return () => { m.remove(); window.removeEventListener('hashchange', onHash); };
   }, []);
-  useEffect(() => {
-    if (!user) { setAccess('checking'); return; }
+  const check = useCallback(() => {
     let alive = true;
-    api.admin<{ email: string }>('/me').then(() => alive && setAccess('ok'))
-      .catch((e) => alive && setAccess((e as ApiError).status === 403 ? 'verify' : 'denied'));
+    setAccess('checking');
+    api.admin<{ email: string | null }>('/me').then(() => alive && setAccess('ok'))
+      .catch((e) => { if (!alive) return; if ((e as ApiError).status !== 403) setAdminToken(null); setAccess((e as ApiError).status === 403 && !getAdminToken() ? 'verify' : 'login'); });
     return () => { alive = false; };
-  }, [user]);
+  }, []);
+  useEffect(check, [check, user?.id]);
+  const logout = async () => { await api.adminLogout().catch(() => undefined); setAccess('login'); };
 
   let body: ReactNode;
-  if (status === 'loading') body = <p className="ad-muted">Загрузка…</p>;
-  else if (!user) body = <LoginForm />;
-  else if (access === 'checking') body = <p className="ad-muted">Проверяем доступ…</p>;
-  else if (access !== 'ok') body = (
-    <div className="ad-card ad-login">
-      <h1>Нет доступа</h1>
-      <p>{access === 'verify' ? 'Подтвердите email этого аккаунта (ссылка в письме), затем обновите страницу.' : 'У этого аккаунта нет доступа к странице.'}</p>
-      <button className="ad-btn" onClick={() => logout()}>Выйти</button>
-    </div>
+  if (access === 'checking') body = <p className="ad-muted">Загрузка…</p>;
+  else if (access === 'login' || access === 'verify') body = (
+    <>
+      {access === 'verify' && <p className="ad-muted" style={{ textAlign: 'center' }}>Чтобы входить без пароля, подтвердите email аккаунта администратора.</p>}
+      <LoginForm onDone={check} />
+    </>
   );
   else body = (
     <>
@@ -536,12 +532,12 @@ export default function Admin() {
     <div className="ad-root">
       <header className="ad-top">
         <b className="ad-brand">Piano Lab · админ</b>
-        {access === 'ok' && user && (
+        {access === 'ok' && (
           <>
             <nav className="ad-tabs" aria-label="Разделы">
               {TABS.map(([k, l]) => <a key={k} href={`#${k}`} className={tab === k ? 'on' : ''} aria-current={tab === k ? 'page' : undefined}>{l}</a>)}
             </nav>
-            <span className="ad-user">{user.email} <button className="ad-btn small" onClick={() => logout()}>Выйти</button></span>
+            <span className="ad-user"><button className="ad-btn small" onClick={logout}>Выйти</button></span>
           </>
         )}
       </header>

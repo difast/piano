@@ -1,25 +1,58 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { db } from './db.ts';
+import { sessionToken } from './auth.ts';
 import { todayKey } from './progress.ts';
 import { MARKETING_LINKS, UTM_KEYS } from './marketing.ts';
 import { isForever } from './billing.ts';
 
 /**
- * Админ-кабинет. Доступ — обычный вход в аккаунт + серверная проверка:
- * email должен быть в ADMIN_EMAILS (переменная окружения сервера) и подтверждён.
- * Всем остальным админ-API отвечает 404, как будто его нет.
+ * Админ-кабинет. Два способа входа (оба проверяет сервер, на клиенте секретов нет):
+ *  1) пароль ADMIN_PASSWORD (переменная окружения сервера, не короче 12 символов) → токен админ-сессии на 12 часов;
+ *  2) (необязательно) обычный аккаунт с email из ADMIN_EMAILS и подтверждённой почтой.
+ * Без входа админ-API отвечает 404, как будто его нет.
  */
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-export const adminEnabled = () => ADMIN_EMAILS.length > 0;
+const RAW_PASSWORD = process.env.ADMIN_PASSWORD ?? '';
+const ADMIN_PASSWORD = RAW_PASSWORD.length >= 12 ? RAW_PASSWORD : '';
+export const adminStatus = () => (ADMIN_PASSWORD ? 'включён (вход по ADMIN_PASSWORD)' : RAW_PASSWORD ? 'пароль ADMIN_PASSWORD слишком короткий (нужно не меньше 12 символов) — вход по паролю выключен'
+  : 'вход по паролю выключен — не задана ADMIN_PASSWORD') + (ADMIN_EMAILS.length ? `; вход по аккаунтам ADMIN_EMAILS: ${ADMIN_EMAILS.length}` : '');
 const isAdminEmail = (email: string) => ADMIN_EMAILS.includes(email.toLowerCase());
-export const isAdmin = (u: Request['user']) => !!u && u.emailVerified && isAdminEmail(u.email);
+const isAdminUser = (u: Request['user']) => !!u && u.emailVerified && isAdminEmail(u.email);
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+const sha = (s: string) => createHash('sha256').update(s).digest();
+const ADMIN_TTL = 12 * 3600_000;
+const TOKEN_PREFIX = 'adm_';
+/** Сравнение пароля за постоянное время (по хешам одинаковой длины). */
+export const checkAdminPassword = (pw: unknown) => !!ADMIN_PASSWORD && typeof pw === 'string' && pw.length <= 200 && timingSafeEqual(sha(pw), sha(ADMIN_PASSWORD));
+export async function createAdminSession(): Promise<string> {
+  const token = TOKEN_PREFIX + randomBytes(32).toString('base64url');
+  await db.run('INSERT INTO admin_sessions (token_hash, expires_at) VALUES (?, ?)', sha(token).toString('hex'), Date.now() + ADMIN_TTL);
+  return token;
+}
+export async function destroyAdminSession(req: Request) {
+  const t = sessionToken(req);
+  if (t?.startsWith(TOKEN_PREFIX)) await db.run('DELETE FROM admin_sessions WHERE token_hash = ?', sha(t).toString('hex'));
+}
+async function hasAdminSession(req: Request): Promise<boolean> {
+  const t = sessionToken(req);
+  if (!ADMIN_PASSWORD || !t?.startsWith(TOKEN_PREFIX) || t.length > 100) return false;
+  const row = await db.get<{ exp: number }>('SELECT expires_at AS exp FROM admin_sessions WHERE token_hash = ?', sha(t).toString('hex'));
+  return !!row && Number(row.exp) > Date.now();
+}
+
+export function noStore(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-  if (req.user && !req.user.emailVerified && isAdminEmail(req.user.email)) { res.status(403).json({ error: 'Подтвердите email этого аккаунта — после этого откроется доступ.', code: 'verify' }); return; }
-  if (!isAdmin(req.user)) { res.status(404).json({ error: 'Не найдено' }); return; }
   next();
+}
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (await hasAdminSession(req)) { res.locals.adminId = 0; next(); return; }
+    if (isAdminUser(req.user)) { res.locals.adminId = req.user!.id; next(); return; }
+    if (req.user && !req.user.emailVerified && isAdminEmail(req.user.email)) { res.status(403).json({ error: 'Подтвердите email этого аккаунта — после этого откроется доступ.', code: 'verify' }); return; }
+    res.status(404).json({ error: 'Не найдено' });
+  } catch (e) { next(e); }
 }
 
 // ---------- общие помощники ----------
