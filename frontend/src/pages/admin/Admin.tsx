@@ -45,12 +45,12 @@ const SUB_TONE: Record<Sub, string> = { active: 'ok', pending: 'warn', canceled:
 const METHOD: Record<string, string> = { bank_card: 'карта', sbp: 'СБП', yoo_money: 'ЮMoney', sberbank: 'SberPay', tinkoff_bank: 'T-Pay', mobile_balance: 'баланс телефона' };
 const DEVICE: Record<string, string> = { mobile: 'телефон', tablet: 'планшет', desktop: 'компьютер' };
 const sourceText = (s: Source | null) => (s ? [s.slug, s.utm_source, s.utm_medium, s.utm_campaign].filter(Boolean).join(' · ') : '—');
-const Pill = ({ tone, children }: { tone: string; children: ReactNode }) => <span className={`ad-pill ${tone}`}>{children}</span>;
+const Pill = ({ tone, children }: { tone: string; children: ReactNode }) => <span className={`cab-pill ${tone}`}>{children}</span>;
 
 const PERIODS = [['7', '7 дней'], ['30', '30 дней'], ['90', '90 дней'], ['all', 'Всё время']] as const;
 function PeriodSwitch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="ad-seg" role="group" aria-label="Период">
+    <div className="cab-seg" role="group" aria-label="Период">
       {PERIODS.map(([v, l]) => <button key={v} className={value === v ? 'on' : ''} onClick={() => onChange(v)} aria-pressed={value === v}>{l}</button>)}
     </div>
   );
@@ -71,7 +71,7 @@ function useAdmin<T>(path: string, params: Record<string, string | number | unde
 }
 
 const Kpi = ({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) => (
-  <div className="ad-kpi"><span className="ad-kpi-l">{label}</span><b>{value}</b>{sub && <span className="ad-kpi-s">{sub}</span>}</div>
+  <div className="cab-kpi"><span className="cab-kpi-l">{label}</span><b>{value}</b>{sub && <span className="cab-kpi-s">{sub}</span>}</div>
 );
 
 // ---------- графики: один ряд — столбики цвета бренда, подпись при наведении ----------
@@ -84,23 +84,23 @@ function Bars({ title, days, values, step, format = fmtNum }: { title: string; d
   const i = hover ?? days.length - 1;
   const label = (d: string) => (step > 1 ? `неделя с ${dayShort(d)}` : dayShort(d));
   return (
-    <figure className="ad-chart">
+    <figure className="cab-chart">
       <figcaption><span>{title}</span><b>{format(total)}</b></figcaption>
-      <div className="ad-chart-tip" aria-live="polite">{label(days[i])}: <b>{format(values[i])}</b></div>
+      <div className="cab-chart-tip" aria-live="polite">{label(days[i])}: <b>{format(values[i])}</b></div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${title}: всего ${format(total)}`} onMouseLeave={() => setHover(null)}>
-        <line x1="0" x2={W} y1={H - 0.5} y2={H - 0.5} className="ad-axis" />
+        <line x1="0" x2={W} y1={H - 0.5} y2={H - 0.5} className="cab-axis" />
         {values.map((v, k) => {
           const h = v ? Math.max(3, (v / max) * (H - 6)) : 0;
           const x = k * (bw + gap);
           return (
             <g key={days[k]} onMouseEnter={() => setHover(k)} onTouchStart={() => setHover(k)}>
               <rect x={x} y={0} width={bw + gap} height={H} fill="transparent" />
-              {h > 0 && <rect x={x} y={H - h} width={bw} height={h} rx={Math.min(3, bw / 2)} className={`ad-bar${k === i ? ' on' : ''}`} />}
+              {h > 0 && <rect x={x} y={H - h} width={bw} height={h} rx={Math.min(3, bw / 2)} className={`cab-bar${k === i ? ' on' : ''}`} />}
             </g>
           );
         })}
       </svg>
-      <div className="ad-chart-x"><span>{dayShort(days[0])}</span><span>{dayShort(days[days.length - 1])}</span></div>
+      <div className="cab-chart-x"><span>{dayShort(days[0])}</span><span>{dayShort(days[days.length - 1])}</span></div>
     </figure>
   );
 }
@@ -113,13 +113,13 @@ function Funnel({ m }: { m: Metrics }) {
   ];
   const max = Math.max(1, steps[0].v);
   return (
-    <figure className="ad-chart ad-funnel">
+    <figure className="cab-chart cab-funnel">
       <figcaption><span>Воронка: переход → регистрация → оплата</span></figcaption>
       {steps.map((s) => (
-        <div className="ad-fstep" key={s.l}>
-          <div className="ad-frow"><span>{s.l}</span><b>{fmtNum(s.v)}</b></div>
-          <div className="ad-ftrack"><div style={{ width: `${(s.v / max) * 100}%` }} /></div>
-          <span className="ad-kpi-s">{s.note}</span>
+        <div className="cab-fstep" key={s.l}>
+          <div className="cab-frow"><span>{s.l}</span><b>{fmtNum(s.v)}</b></div>
+          <div className="cab-ftrack"><div style={{ width: `${(s.v / max) * 100}%` }} /></div>
+          <span className="cab-kpi-s">{s.note}</span>
         </div>
       ))}
     </figure>
@@ -130,11 +130,11 @@ function ChartsBlock() {
   const [period, setPeriod] = useState('30');
   const { data, error } = useAdmin<Charts>('/charts', { period });
   return (
-    <section className="ad-card">
-      <div className="ad-head"><h2>Динамика</h2><PeriodSwitch value={period} onChange={setPeriod} /></div>
-      {error && <p className="ad-err">{error}</p>}
+    <section className="cab-card">
+      <div className="cab-head"><h2>Динамика</h2><PeriodSwitch value={period} onChange={setPeriod} /></div>
+      {error && <p className="cab-err">{error}</p>}
       {data && (
-        <div className="ad-charts">
+        <div className="cab-charts">
           <Bars title="Регистрации" days={data.days} values={data.registrations} step={data.step} />
           <Bars title="Клики по маркетинговым ссылкам" days={data.days} values={data.clicks} step={data.step} />
           <Bars title="Оплаты" days={data.days} values={data.payments} step={data.step} />
@@ -147,19 +147,19 @@ function ChartsBlock() {
 }
 
 function PaymentsTable({ rows, compact = false }: { rows: Payment[]; compact?: boolean }) {
-  if (!rows.length) return <p className="ad-empty">Платежей пока нет.</p>;
+  if (!rows.length) return <p className="cab-empty">Платежей пока нет.</p>;
   return (
-    <div className="ad-table-wrap">
-      <table className="ad-table">
+    <div className="cab-table-wrap">
+      <table className="cab-table">
         <thead><tr><th>Дата</th><th>Пользователь</th><th>Тариф</th><th className="r">Сумма</th><th>Статус</th>{!compact && <><th>Источник</th><th>Оплата</th><th>ID платежа</th></>}</tr></thead>
         <tbody>
           {rows.map((p) => (
             <tr key={p.id}>
               <td className="nw">{fmtDateTime(p.date)}</td>
-              <td>{p.email ?? <span className="ad-muted">аккаунт удалён</span>}{p.userId && <span className="ad-muted"> · #{p.userId}</span>}</td>
+              <td>{p.email ?? <span className="cab-muted">аккаунт удалён</span>}{p.userId && <span className="cab-muted"> · #{p.userId}</span>}</td>
               <td className="nw">{p.planTitle}</td>
               <td className="r nw">{fmtMoney(p.amount, p.currency)}</td>
-              <td><Pill tone={PAY_TONE[p.status] ?? 'muted'}>{PAY_LABEL[p.status] ?? p.status}</Pill>{p.failReason && <span className="ad-muted small"> {p.failReason}</span>}</td>
+              <td><Pill tone={PAY_TONE[p.status] ?? 'muted'}>{PAY_LABEL[p.status] ?? p.status}</Pill>{p.failReason && <span className="cab-muted small"> {p.failReason}</span>}</td>
               {!compact && <>
                 <td>{sourceText(p.source)}</td>
                 <td className="nw">{p.provider}{p.method && ` · ${METHOD[p.method] ?? p.method}`}</td>
@@ -176,14 +176,14 @@ function PaymentsTable({ rows, compact = false }: { rows: Payment[]; compact?: b
 // ---------- разделы ----------
 function DashboardTab() {
   const { data, error } = useAdmin<Dashboard>('/dashboard', {});
-  if (error) return <p className="ad-err">{error}</p>;
-  if (!data) return <p className="ad-muted">Загрузка…</p>;
+  if (error) return <p className="cab-err">{error}</p>;
+  if (!data) return <p className="cab-muted">Загрузка…</p>;
   const { users: u, payments: p } = data;
   return (
     <>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>Пользователи</h2>
-        <div className="ad-kpis">
+        <div className="cab-kpis">
           <Kpi label="Всего" value={fmtNum(u.total)} sub={u.blocked ? `заблокировано: ${u.blocked}` : undefined} />
           <Kpi label="Новые сегодня" value={fmtNum(u.today)} />
           <Kpi label="За 7 дней" value={fmtNum(u.d7)} />
@@ -193,9 +193,9 @@ function DashboardTab() {
           <Kpi label="Pro" value={fmtNum(u.pro)} />
         </div>
       </section>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>Оплаты</h2>
-        <div className="ad-kpis">
+        <div className="cab-kpis">
           <Kpi label="Успешных оплат" value={fmtNum(p.count)} />
           <Kpi label="Сумма оплат" value={fmtMoney(p.sum)} />
           <Kpi label="Сегодня" value={fmtMoney(p.today.sum)} sub={`${p.today.count} шт.`} />
@@ -207,8 +207,8 @@ function DashboardTab() {
         </div>
       </section>
       <ChartsBlock />
-      <section className="ad-card">
-        <div className="ad-head"><h2>Последние платежи</h2><a href="#payments" className="ad-link">Все платежи →</a></div>
+      <section className="cab-card">
+        <div className="cab-head"><h2>Последние платежи</h2><a href="#payments" className="cab-link">Все платежи →</a></div>
         <PaymentsTable rows={data.recentPayments} compact />
       </section>
     </>
@@ -219,10 +219,10 @@ function Pager({ page, total, size, onPage }: { page: number; total: number; siz
   const pages = Math.max(1, Math.ceil(total / size));
   if (pages <= 1) return null;
   return (
-    <div className="ad-pager">
-      <button className="ad-btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>←</button>
+    <div className="cab-pager">
+      <button className="cab-btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>←</button>
       <span>{page} из {pages}</span>
-      <button className="ad-btn" disabled={page >= pages} onClick={() => onPage(page + 1)}>→</button>
+      <button className="cab-btn" disabled={page >= pages} onClick={() => onPage(page + 1)}>→</button>
     </div>
   );
 }
@@ -243,24 +243,24 @@ function UsersTab() {
     try { await api.adminBlock(u.id, block); reload(); } catch (e) { window.alert((e as ApiError).message); }
   };
   const sel = (v: string, set: (s: string) => void, opts: [string, string][], label: string) => (
-    <label className="ad-field"><span>{label}</span>
+    <label className="cab-field"><span>{label}</span>
       <select value={v} onChange={(e) => { set(e.target.value); setPage(1); }}>{opts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
     </label>
   );
   return (
-    <section className="ad-card">
-      <div className="ad-head"><h2>Пользователи{data && <span className="ad-muted"> · {fmtNum(data.total)}</span>}</h2></div>
-      <div className="ad-filters">
-        <label className="ad-field grow"><span>Поиск</span><input type="search" placeholder="email или ID" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+    <section className="cab-card">
+      <div className="cab-head"><h2>Пользователи{data && <span className="cab-muted"> · {fmtNum(data.total)}</span>}</h2></div>
+      <div className="cab-filters">
+        <label className="cab-field grow"><span>Поиск</span><input type="search" placeholder="email или ID" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         {sel(plan, setPlan, [['', 'Все'], ['free', 'Free'], ['pro', 'Pro']], 'Тариф')}
         {sel(sub, setSub, [['', 'Все'], ['active', 'активна'], ['pending', 'ожидает оплаты'], ['canceled', 'отменена'], ['expired', 'истекла'], ['error', 'ошибка'], ['none', 'нет оплат']], 'Оплата')}
         {sel(account, setAccount, [['', 'Все'], ['active', 'активен'], ['blocked', 'заблокирован']], 'Аккаунт')}
         {sel(source, setSource, [['', 'Все'], ['marketing', 'по ссылке'], ['direct', 'напрямую']], 'Источник')}
       </div>
-      {error && <p className="ad-err">{error}</p>}
-      {data && (data.users.length === 0 ? <p className="ad-empty">Никого не найдено.</p> : (
-        <div className="ad-table-wrap">
-          <table className="ad-table">
+      {error && <p className="cab-err">{error}</p>}
+      {data && (data.users.length === 0 ? <p className="cab-empty">Никого не найдено.</p> : (
+        <div className="cab-table-wrap">
+          <table className="cab-table">
             <thead><tr>
               <th>ID</th><th>Email</th><th>Регистрация</th><th>Аккаунт</th><th>Тариф</th><th>Оплата</th><th>Pro с</th><th>Pro до</th>
               <th className="r">Посл. оплата</th><th>Дата оплаты</th><th className="r">Всего оплат</th><th>Активность</th><th>Источник</th><th />
@@ -269,19 +269,19 @@ function UsersTab() {
               {data.users.map((u) => (
                 <tr key={u.id} className={u.account === 'blocked' ? 'dim' : ''}>
                   <td className="mono">{u.id}</td>
-                  <td>{u.email}{!u.emailVerified && <span className="ad-muted small" title="почта не подтверждена"> ✉︎?</span>}</td>
+                  <td>{u.email}{!u.emailVerified && <span className="cab-muted small" title="почта не подтверждена"> ✉︎?</span>}</td>
                   <td className="nw">{fmtDate(u.createdAt)}</td>
                   <td><Pill tone={u.account === 'active' ? 'ok' : 'bad'}>{u.account === 'active' ? 'активен' : 'заблокирован'}</Pill></td>
-                  <td className="nw"><Pill tone={u.plan === 'pro' ? 'pro' : 'muted'}>{u.plan === 'pro' ? 'Pro' : 'Free'}</Pill>{u.plan === 'pro' && <span className="ad-muted small"> {u.planTitle.replace('Pro · ', '')}</span>}</td>
+                  <td className="nw"><Pill tone={u.plan === 'pro' ? 'pro' : 'muted'}>{u.plan === 'pro' ? 'Pro' : 'Free'}</Pill>{u.plan === 'pro' && <span className="cab-muted small"> {u.planTitle.replace('Pro · ', '')}</span>}</td>
                   <td><Pill tone={SUB_TONE[u.sub]}>{SUB_LABEL[u.sub]}</Pill></td>
                   <td className="nw">{fmtDate(u.subStart)}</td>
                   <td className="nw">{u.subEnd === 'forever' ? 'навсегда' : fmtDate(u.subEnd)}</td>
                   <td className="r nw">{u.lastAmount != null ? fmtMoney(u.lastAmount) : '—'}</td>
                   <td className="nw">{fmtDate(u.lastPaidAt)}</td>
-                  <td className="r nw">{u.paidTotal ? fmtMoney(u.paidTotal) : '—'}{u.paidCount > 1 && <span className="ad-muted small"> ({u.paidCount})</span>}</td>
+                  <td className="r nw">{u.paidTotal ? fmtMoney(u.paidTotal) : '—'}{u.paidCount > 1 && <span className="cab-muted small"> ({u.paidCount})</span>}</td>
                   <td className="nw">{fmtDate(u.lastActive)}</td>
                   <td>{sourceText(u.source)}</td>
-                  <td><button className="ad-btn small" onClick={() => toggleBlock(u)}>{u.account === 'active' ? 'Заблокировать' : 'Разблокировать'}</button></td>
+                  <td><button className="cab-btn small" onClick={() => toggleBlock(u)}>{u.account === 'active' ? 'Заблокировать' : 'Разблокировать'}</button></td>
                 </tr>
               ))}
             </tbody>
@@ -305,27 +305,27 @@ function PaymentsTab() {
   const { data, error } = useAdmin<{ total: number; page: number; pageSize: number; payments: Payment[]; sum: { succeeded: number; count: number } }>('/payments', { from, to, status, plan, page });
   const preset = (days: number | null) => { setTo(todayMsk()); setFrom(days ? shift(todayMsk(), -(days - 1)) : ''); setPage(1); };
   return (
-    <section className="ad-card">
-      <div className="ad-head"><h2>Платежи</h2>
-        <div className="ad-seg">{([[7, '7 дней'], [30, '30 дней'], [90, '90 дней'], [null, 'Всё время']] as const).map(([d, l]) => <button key={l} onClick={() => preset(d)}>{l}</button>)}</div>
+    <section className="cab-card">
+      <div className="cab-head"><h2>Платежи</h2>
+        <div className="cab-seg">{([[7, '7 дней'], [30, '30 дней'], [90, '90 дней'], [null, 'Всё время']] as const).map(([d, l]) => <button key={l} onClick={() => preset(d)}>{l}</button>)}</div>
       </div>
-      <div className="ad-filters">
-        <label className="ad-field"><span>С</span><input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></label>
-        <label className="ad-field"><span>По</span><input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></label>
-        <label className="ad-field"><span>Статус</span>
+      <div className="cab-filters">
+        <label className="cab-field"><span>С</span><input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></label>
+        <label className="cab-field"><span>По</span><input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></label>
+        <label className="cab-field"><span>Статус</span>
           <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
             <option value="">Все</option><option value="succeeded">успешно</option><option value="pending">ожидает оплаты</option><option value="canceled">неуспешный</option><option value="refunded">возврат</option>
           </select></label>
-        <label className="ad-field"><span>Тариф</span>
+        <label className="cab-field"><span>Тариф</span>
           <select value={plan} onChange={(e) => { setPlan(e.target.value); setPage(1); }}>
             <option value="">Все</option><option value="pro-month">Pro · месяц</option><option value="pro-year">Pro · год</option><option value="pro-forever">Pro · навсегда</option>
           </select></label>
       </div>
-      {error && <p className="ad-err">{error}</p>}
+      {error && <p className="cab-err">{error}</p>}
       {data && (
         <>
-          <div className="ad-total" data-testid="payments-total">
-            Итого успешных за период: <b>{fmtMoney(data.sum.succeeded)}</b> <span className="ad-muted">· {data.sum.count} оплат · всего записей {data.total}</span>
+          <div className="cab-total" data-testid="payments-total">
+            Итого успешных за период: <b>{fmtMoney(data.sum.succeeded)}</b> <span className="cab-muted">· {data.sum.count} оплат · всего записей {data.total}</span>
           </div>
           <PaymentsTable rows={data.payments} />
           <Pager page={data.page} total={data.total} size={data.pageSize} onPage={setPage} />
@@ -342,7 +342,7 @@ function CopyButton({ text }: { text: string }) {
     catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
     setDone(true); window.setTimeout(() => setDone(false), 1500);
   };
-  return <button className="ad-btn primary" onClick={copy}>{done ? 'Скопировано ✓' : 'Копировать'}</button>;
+  return <button className="cab-btn primary" onClick={copy}>{done ? 'Скопировано ✓' : 'Копировать'}</button>;
 }
 
 const UTM_FIELDS = [['utm_source', 'источник'], ['utm_medium', 'тип'], ['utm_campaign', 'кампания'], ['utm_content', 'объявление'], ['utm_term', 'ключ']] as const;
@@ -351,15 +351,15 @@ function LinkBuilder({ base }: { base: string }) {
   const qs = new URLSearchParams(Object.entries(v).filter(([, x]) => x.trim()).map(([k, x]) => [k, x.trim()])).toString();
   const url = `${base}${qs ? `?${qs}` : ''}`;
   return (
-    <div className="ad-builder">
+    <div className="cab-builder">
       <h3>Ссылка с UTM-метками</h3>
-      <p className="ad-muted small">Для Reels, рекламы, блогеров — отдельная метка, и статистика разделится в таблице ниже.</p>
-      <div className="ad-filters">
+      <p className="cab-muted small">Для Reels, рекламы, блогеров — отдельная метка, и статистика разделится в таблице ниже.</p>
+      <div className="cab-filters">
         {UTM_FIELDS.map(([k, l]) => (
-          <label className="ad-field" key={k}><span>{k} <i>({l})</i></span><input value={v[k] ?? ''} maxLength={100} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
+          <label className="cab-field" key={k}><span>{k} <i>({l})</i></span><input value={v[k] ?? ''} maxLength={100} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
         ))}
       </div>
-      <div className="ad-linkrow"><code>{url}</code><CopyButton text={url} /></div>
+      <div className="cab-linkrow"><code>{url}</code><CopyButton text={url} /></div>
     </div>
   );
 }
@@ -367,18 +367,18 @@ function LinkBuilder({ base }: { base: string }) {
 function MarketingTab() {
   const [period, setPeriod] = useState('30');
   const { data, error } = useAdmin<Marketing>('/marketing', { period });
-  if (error) return <p className="ad-err">{error}</p>;
-  if (!data) return <p className="ad-muted">Загрузка…</p>;
+  if (error) return <p className="cab-err">{error}</p>;
+  if (!data) return <p className="cab-muted">Загрузка…</p>;
   const t = data.totals;
-  const utmCell = (s: string | null) => s ?? <span className="ad-muted">—</span>;
+  const utmCell = (s: string | null) => s ?? <span className="cab-muted">—</span>;
   return (
     <>
-      <section className="ad-card">
-        <div className="ad-head"><h2>Маркетинговые ссылки</h2><PeriodSwitch value={period} onChange={setPeriod} /></div>
+      <section className="cab-card">
+        <div className="cab-head"><h2>Маркетинговые ссылки</h2><PeriodSwitch value={period} onChange={setPeriod} /></div>
         {data.links.map((l) => (
-          <div className="ad-mlink" key={l.slug} data-testid={`mlink-${l.slug}`}>
-            <div className="ad-linkrow"><b>{l.title}</b><code>{l.url}</code><CopyButton text={l.url} /></div>
-            <div className="ad-kpis">
+          <div className="cab-mlink" key={l.slug} data-testid={`mlink-${l.slug}`}>
+            <div className="cab-linkrow"><b>{l.title}</b><code>{l.url}</code><CopyButton text={l.url} /></div>
+            <div className="cab-kpis">
               <Kpi label="Клики" value={fmtNum(l.clicks)} sub={`уникальных ${fmtNum(l.unique)}`} />
               <Kpi label="Регистрации" value={fmtNum(l.registrations)} sub={`конверсия ${l.convReg}%`} />
               <Kpi label="Оплаты" value={fmtNum(l.payments)} sub={`покупателей ${l.payers} · ${l.convPay}%`} />
@@ -388,9 +388,9 @@ function MarketingTab() {
         ))}
         <LinkBuilder base={data.links[0]?.url ?? ''} />
       </section>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>Все переходы</h2>
-        <div className="ad-kpis" data-testid="mkt-totals">
+        <div className="cab-kpis" data-testid="mkt-totals">
           <Kpi label="Кликов за период" value={fmtNum(t.clicks)} sub={`за всё время ${fmtNum(t.allTime)}`} />
           <Kpi label="Уникальные" value={fmtNum(t.unique)} />
           <Kpi label="Сегодня" value={fmtNum(t.today)} />
@@ -400,13 +400,13 @@ function MarketingTab() {
           <Kpi label="Оплаты" value={fmtNum(t.payments)} sub={`клик → оплата ${t.convPay}%`} />
           <Kpi label="Выручка" value={fmtMoney(t.revenue)} />
         </div>
-        <p className="ad-muted small">Конверсии считаются от уникальных посетителей. Регистрация засчитывается переходу, если была в течение 30 дней после него.</p>
+        <p className="cab-muted small">Конверсии считаются от уникальных посетителей. Регистрация засчитывается переходу, если была в течение 30 дней после него.</p>
       </section>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>По UTM-меткам</h2>
-        {data.byUtm.length === 0 ? <p className="ad-empty">Переходов за период нет.</p> : (
-          <div className="ad-table-wrap">
-            <table className="ad-table" data-testid="utm-table">
+        {data.byUtm.length === 0 ? <p className="cab-empty">Переходов за период нет.</p> : (
+          <div className="cab-table-wrap">
+            <table className="cab-table" data-testid="utm-table">
               <thead><tr><th>source</th><th>medium</th><th>campaign</th><th>content</th><th>term</th><th className="r">Клики</th><th className="r">Уник.</th><th className="r">Рег.</th><th className="r">Оплаты</th><th className="r">Выручка</th><th className="r">Конв. рег.</th><th className="r">Конв. опл.</th></tr></thead>
               <tbody>
                 {data.byUtm.map((r, i) => (
@@ -421,13 +421,13 @@ function MarketingTab() {
           </div>
         )}
       </section>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>Кто переходит</h2>
-        <div className="ad-breakdown">
+        <div className="cab-breakdown">
           {([['device', 'Устройство'], ['os', 'ОС'], ['browser', 'Браузер'], ['country', 'Страна'], ['lang', 'Язык браузера'], ['referrer', 'Откуда (сайт)']] as const).map(([k, l]) => (
             <div key={k}>
               <h3>{l}</h3>
-              {data.breakdown[k].length === 0 ? <p className="ad-muted small">нет данных</p> : (
+              {data.breakdown[k].length === 0 ? <p className="cab-muted small">нет данных</p> : (
                 <ul>{data.breakdown[k].map((r) => (
                   <li key={r.name}><span>{k === 'device' ? DEVICE[r.name] ?? r.name : r.name}</span><b>{r.count}</b>
                     <i style={{ width: `${(r.count / Math.max(1, data.breakdown[k][0].count)) * 100}%` }} /></li>
@@ -436,13 +436,13 @@ function MarketingTab() {
             </div>
           ))}
         </div>
-        <p className="ad-muted small">Страна определяется, только если её передаёт сеть доставки; город не определяется. IP-адреса не сохраняются.</p>
+        <p className="cab-muted small">Страна определяется, только если её передаёт сеть доставки; город не определяется. IP-адреса не сохраняются.</p>
       </section>
-      <section className="ad-card">
+      <section className="cab-card">
         <h2>Последние переходы</h2>
-        {data.recent.length === 0 ? <p className="ad-empty">Переходов за период нет.</p> : (
-          <div className="ad-table-wrap">
-            <table className="ad-table" data-testid="clicks-table">
+        {data.recent.length === 0 ? <p className="cab-empty">Переходов за период нет.</p> : (
+          <div className="cab-table-wrap">
+            <table className="cab-table" data-testid="clicks-table">
               <thead><tr><th>Время</th><th>Ссылка</th><th>UTM</th><th>Устройство</th><th>Откуда</th><th>Посетитель</th><th>Регистрация</th><th className="r">Принёс</th></tr></thead>
               <tbody>
                 {data.recent.map((c) => (
@@ -453,7 +453,7 @@ function MarketingTab() {
                     <td className="nw">{DEVICE[c.device] ?? c.device} · {c.os} · {c.browser}{c.lang && ` · ${c.lang}`}{c.country && ` · ${c.country}`}</td>
                     <td>{c.referrer ?? '—'}</td>
                     <td className="mono">{c.visitor}</td>
-                    <td>{c.registered ? <>{c.registered.email} <span className="ad-muted">#{c.registered.id}</span></> : '—'}</td>
+                    <td>{c.registered ? <>{c.registered.email} <span className="cab-muted">#{c.registered.id}</span></> : '—'}</td>
                     <td className="r nw">{c.revenue ? fmtMoney(c.revenue) : '—'}</td>
                   </tr>
                 ))}
@@ -476,11 +476,11 @@ function LoginForm({ onDone }: { onDone: () => void }) {
     try { await api.adminLogin(password); setPassword(''); onDone(); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };
   return (
-    <form className="ad-card ad-login" onSubmit={submit}>
+    <form className="cab-card cab-login" onSubmit={submit}>
       <h1>Вход в админ-кабинет</h1>
-      <label className="ad-field"><span>Пароль</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
-      {error && <p className="ad-err">{error}</p>}
-      <button className="ad-btn primary" disabled={busy || !password}>{busy ? 'Проверяем…' : 'Войти'}</button>
+      <label className="cab-field"><span>Пароль</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
+      {error && <p className="cab-err">{error}</p>}
+      <button className="cab-btn primary" disabled={busy || !password}>{busy ? 'Проверяем…' : 'Войти'}</button>
     </form>
   );
 }
@@ -513,10 +513,10 @@ export default function Admin() {
   const logout = async () => { await api.adminLogout().catch(() => undefined); setAccess('login'); };
 
   let body: ReactNode;
-  if (access === 'checking') body = <p className="ad-muted">Загрузка…</p>;
+  if (access === 'checking') body = <p className="cab-muted">Загрузка…</p>;
   else if (access === 'login' || access === 'verify') body = (
     <>
-      {access === 'verify' && <p className="ad-muted" style={{ textAlign: 'center' }}>Чтобы входить без пароля, подтвердите email аккаунта администратора.</p>}
+      {access === 'verify' && <p className="cab-muted" style={{ textAlign: 'center' }}>Чтобы входить без пароля, подтвердите email аккаунта администратора.</p>}
       <LoginForm onDone={check} />
     </>
   );
@@ -529,19 +529,19 @@ export default function Admin() {
     </>
   );
   return (
-    <div className="ad-root">
-      <header className="ad-top">
-        <b className="ad-brand">Piano Lab · админ</b>
+    <div className="cab-root">
+      <header className="cab-top">
+        <b className="cab-brand">Piano Lab · админ</b>
         {access === 'ok' && (
           <>
-            <nav className="ad-tabs" aria-label="Разделы">
+            <nav className="cab-tabs" aria-label="Разделы">
               {TABS.map(([k, l]) => <a key={k} href={`#${k}`} className={tab === k ? 'on' : ''} aria-current={tab === k ? 'page' : undefined}>{l}</a>)}
             </nav>
-            <span className="ad-user"><button className="ad-btn small" onClick={logout}>Выйти</button></span>
+            <span className="cab-user"><button className="cab-btn small" onClick={logout}>Выйти</button></span>
           </>
         )}
       </header>
-      <main className="ad-main">{body}</main>
+      <main className="cab-main">{body}</main>
     </div>
   );
 }
