@@ -21,9 +21,8 @@ import ScoreDetail from './pages/ScoreDetail';
 import Auth from './pages/Auth';
 import { Consent, Privacy, Terms } from './pages/Legal';
 import Go from './pages/Go';
-import { isAdminUrl } from './adminUrl';
 
-// Админ-кабинет открывается только по скрытому адресу; доступ и данные проверяет сервер.
+// Админ-кабинет (/admin): вход по паролю, доступ и данные проверяет сервер.
 import Admin from './pages/admin/Admin';
 
 function ScrollToTop() {
@@ -54,8 +53,8 @@ export default function App() {
 }
 
 function Shell() {
-  const { pathname, search } = useLocation();
-  if (isAdminUrl(pathname, search)) return <Admin />;
+  const { pathname } = useLocation();
+  if (/^\/admin\/?$/.test(pathname)) return <Admin />;
   return (
         <UpsellProvider>
         <ScrollToTop />

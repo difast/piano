@@ -6,5 +6,6 @@ Disallow: /payment/
 Disallow: /reset-password
 Disallow: /verify-email
 Disallow: /go/
+Disallow: /admin
 
 Sitemap: https://piano-lab.ru/sitemap.xml
