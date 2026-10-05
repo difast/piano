@@ -503,8 +503,10 @@ export default function Admin() {
   const check = useCallback(() => {
     let alive = true;
     setAccess('checking');
-    api.admin<{ email: string | null }>('/me').then(() => alive && setAccess('ok'))
-      .catch((e) => { if (!alive) return; if ((e as ApiError).status !== 403) setAdminToken(null); setAccess((e as ApiError).status === 403 && !getAdminToken() ? 'verify' : 'login'); });
+    const dbg = (window as unknown as { __adminDebug?: (s: string, x?: Record<string, unknown>) => void }).__adminDebug;
+    dbg?.('check-start');
+    api.admin<{ email: string | null }>('/me').then(() => { dbg?.('check-ok'); if (alive) setAccess('ok'); })
+      .catch((e) => { dbg?.('check-fail', { status: (e as ApiError).status, message: (e as Error).message }); if (!alive) return; if ((e as ApiError).status !== 403) setAdminToken(null); setAccess((e as ApiError).status === 403 && !getAdminToken() ? 'verify' : 'login'); });
     return () => { alive = false; };
   }, []);
   useEffect(check, [check]);

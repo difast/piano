@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-page="site">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -69,6 +69,7 @@
         setTimeout(function () { show('Приложение не запустилось за 15 секунд'); }, 15000);
       })();
     </script>
+    <script>if (/^\/admin/.test(location.pathname)) document.write('<script src="/admin-debug.js"><\/script>');</script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
