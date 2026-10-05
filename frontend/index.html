@@ -33,6 +33,29 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Если приложение не запустилось (не загрузился файл, ошибка в старом браузере) — вместо белого экрана показываем причину.
+      (function () {
+        var shown = false;
+        function show(msg) {
+          var r = document.getElementById('root');
+          if (shown || (r && r.children.length)) return;
+          shown = true;
+          var box = document.createElement('div');
+          box.style.cssText = 'font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;color:#1c1917';
+          box.innerHTML = '<h2>Страница не загрузилась</h2><p>Обновите страницу. Если не поможет — пришлите нам текст ниже.</p><pre style="white-space:pre-wrap;background:#f5f5f4;padding:12px;border-radius:8px"></pre><button style="font:inherit;padding:8px 16px">Обновить</button>';
+          box.querySelector('pre').textContent = msg + '\n' + navigator.userAgent;
+          box.querySelector('button').onclick = function () { location.reload(); };
+          document.body.appendChild(box);
+        }
+        window.addEventListener('error', function (e) {
+          var t = e.target;
+          if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) show('Не загрузился файл: ' + (t.src || t.href));
+          else if (e.message) setTimeout(function () { show('Ошибка: ' + e.message); }, 1500);
+        }, true);
+        setTimeout(function () { show('Приложение не запустилось за 15 секунд'); }, 15000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
