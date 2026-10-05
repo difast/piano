@@ -104,11 +104,20 @@ function readRef(): string | undefined {
   try { const v = JSON.parse(localStorage.getItem(REF_KEY) ?? 'null') as { ref: string; at: number } | null; return v && Date.now() - v.at < 30 * 86_400_000 ? v.ref : undefined; } catch { return undefined; }
 }
 
+// Маркетинговый переход (/go/<slug>): id визита храним 30 дней и передаём при регистрации — так регистрация и оплата связываются с источником
+const MKT_KEY = 'piano_mkt';
+export function saveMarketingVisit(visitId: string) {
+  try { localStorage.setItem(MKT_KEY, JSON.stringify({ v: visitId, at: Date.now() })); } catch { /* хранилище недоступно */ }
+}
+function readMarketingVisit(): string | undefined {
+  try { const x = JSON.parse(localStorage.getItem(MKT_KEY) ?? 'null') as { v: string; at: number } | null; return x && Date.now() - x.at < 30 * 86_400_000 ? x.v : undefined; } catch { return undefined; }
+}
+
 const withToken = ({ token, ...snap }: Snapshot & { token?: string }): Snapshot => { if (token) setToken(token); return snap; };
 
 export const api = {
   me: () => request<Snapshot | { user: null }>('GET', '/me'),
-  register: async (email: string, password: string, name: string, consent: boolean) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/register', { email, password, name, consent, ref: readRef() })),
+  register: async (email: string, password: string, name: string, consent: boolean) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/register', { email, password, name, consent, ref: readRef(), mkt: readMarketingVisit() })),
   login: async (email: string, password: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/auth/login', { email, password })),
   logout: async () => { try { return await request<{ ok: true }>('POST', '/auth/logout', {}); } finally { setToken(null); } },
   completeLesson: (id: string) => request<Snapshot>('POST', `/lessons/${id}/complete`, {}),
@@ -153,4 +162,11 @@ export const api = {
   achievementsSeen: (ids: string[]) => request<{ ok: true }>('POST', '/achievements/seen', { ids }),
   referral: () => request<{ code: string; link: string }>('GET', '/referral'),
   event: (body: unknown) => request<null>('POST', '/events', body, true),
+  marketingClick: (body: unknown) => request<{ visitId: string; recorded: boolean }>('POST', '/mkt/click', body, true),
+  /** Админ-кабинет: сервер отвечает только администратору. */
+  admin: <T,>(path: string, params?: Record<string, string | number | undefined>) => {
+    const qs = new URLSearchParams(Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)])).toString();
+    return request<T>('GET', `/admin${path}${qs ? `?${qs}` : ''}`);
+  },
+  adminBlock: (userId: number, blocked: boolean) => request<{ ok: true }>('POST', `/admin/users/${userId}/block`, { blocked }),
 };

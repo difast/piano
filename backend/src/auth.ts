@@ -67,10 +67,11 @@ export async function loadUser(req: Request, _res: Response, next: NextFunction)
   const token = sessionToken(req);
   try {
     if (token) {
-      const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; exp: number }>(
-        `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", u.email_verified_at AS "emailVerifiedAt", s.expires_at AS exp
+      const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; exp: number; blocked: string | null }>(
+        `SELECT u.id, u.email, u.name, u.is_pro AS "isPro", u.pro_until AS "proUntil", u.email_verified_at AS "emailVerifiedAt", s.expires_at AS exp, u.blocked_at AS blocked
          FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?`, sha(token));
-      if (row && Number(row.exp) > Date.now()) {
+      if (row?.blocked) await destroySession(token);   // заблокированный аккаунт — сессия недействительна
+      else if (row && Number(row.exp) > Date.now()) {
         req.user = toAuthUser(row);
         // скользящий срок: активный пользователь не разлогинивается через 30 дней
         if (Number(row.exp) - Date.now() < RENEW_MS) await db.run('UPDATE sessions SET expires_at = ? WHERE token_hash = ?', Date.now() + SESSION_DAYS * 86_400_000, sha(token));

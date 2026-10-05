@@ -216,4 +216,31 @@ await db.run(`CREATE TABLE IF NOT EXISTS challenge_done (
     done_at TEXT NOT NULL DEFAULT ${NOW},
     PRIMARY KEY (user_id, id, period)
   )`);
+// ---- админка и маркетинг ----
+/** блокировка аккаунта администратором (ISO-время блокировки) */
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked_at TEXT');
+/**
+ * Переходы по маркетинговым ссылкам (/go/<slug>). Без IP и полного User-Agent:
+ * visitor_hash — необратимый хеш (с секретной солью) для подсчёта уникальных посетителей.
+ */
+await db.run(`CREATE TABLE IF NOT EXISTS mkt_clicks (
+    id SERIAL PRIMARY KEY,
+    visit_id TEXT NOT NULL UNIQUE,              -- случайный id визита (UUID), по нему регистрация связывается с переходом
+    slug TEXT NOT NULL,
+    visitor_hash TEXT NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- если переход сделал уже вошедший пользователь
+    utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, utm_content TEXT, utm_term TEXT,
+    referrer TEXT,                              -- только домен источника
+    lang TEXT, device TEXT, os TEXT, browser TEXT, country TEXT,
+    landing TEXT,
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`);
+await db.run('CREATE INDEX IF NOT EXISTS idx_mkt_clicks_created ON mkt_clicks(created_at)');
+/** первый маркетинговый переход, после которого пользователь зарегистрировался */
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS mkt_click_id INTEGER REFERENCES mkt_clicks(id) ON DELETE SET NULL');
+/** источник сохраняется и в платеже — связь остаётся даже после удаления аккаунта */
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS mkt_click_id INTEGER REFERENCES mkt_clicks(id) ON DELETE SET NULL');
+/** способ оплаты из ЮKassa (bank_card, sbp, yoo_money …) и причина отмены неуспешного платежа */
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS method TEXT');
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS fail_reason TEXT');
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

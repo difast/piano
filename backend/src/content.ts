@@ -6,7 +6,7 @@
 export const FREE_DAILY_LIMIT_SEC = 15 * 60;
 
 /** Версия юридических документов — записывается вместе с согласием. Совпадает с frontend/src/data/legal.ts */
-export const LEGAL_VERSION = '2026-10-03';
+export const LEGAL_VERSION = '2026-10-05';
 
 /**
  * Порядок уроков курса (8 этапов по 5 уроков). id постоянные — на них завязан прогресс,

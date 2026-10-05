@@ -10,6 +10,8 @@ import { mailEnabled, mails, sendMail, SUPPORT_EMAIL, verifyMail } from './mail.
 import { achievementsFor, attachReferral, markSeen, recordVisit, referralCode } from './achievements.ts';
 import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
+import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
+import { adminEnabled, charts, dashboard, marketing, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
 import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
@@ -64,6 +66,9 @@ async function setSessionCookie(req: Request, res: Response, userId: number): Pr
   return token;
 }
 
+const BLOCKED_MSG = `Аккаунт заблокирован. Если это ошибка, напишите нам${SUPPORT_EMAIL ? ` на ${SUPPORT_EMAIL}` : ''}.`;
+const isBlocked = async (userId: number) => !!(await db.get<{ b: string | null }>('SELECT blocked_at AS b FROM users WHERE id = ?', userId))?.b;
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 api.post('/auth/register', async (req, res) => {
@@ -86,6 +91,7 @@ api.post('/auth/register', async (req, res) => {
   const token = await setSessionCookie(req, res, id);
   req.user = { id, email, name, isPro: false, proUntil: null, emailVerified: false };
   await attachReferral(id, req.body?.ref);
+  await attachMarketing(id, req.body?.mkt);   // пришёл по маркетинговой ссылке — запоминаем источник
   // письмо с подтверждением — в фоне, регистрация от него не зависит
   sendVerification(id, email).catch((e) => console.error('[mail] подтверждение:', (e as Error).message));
   res.status(201).json({ ...(await snapshot(req)), token });
@@ -94,10 +100,11 @@ api.post('/auth/register', async (req, res) => {
 api.post('/auth/login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!rateLimit(`login:${req.ip}:${email}`)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
-  const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; hash: string }>(
-    'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt", password_hash AS hash FROM users WHERE email = ?', email);
+  const row = await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null; hash: string; blocked: string | null }>(
+    'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt", password_hash AS hash, blocked_at AS blocked FROM users WHERE email = ?', email);
   const ok = row ? await verifyPassword(String(req.body?.password ?? ''), row.hash) : false;
   if (!row || !ok) { res.status(401).json({ error: 'Неверный email или пароль' }); return; }
+  if (row.blocked) { res.status(403).json({ error: BLOCKED_MSG, code: 'blocked' }); return; }
   const token = await setSessionCookie(req, res, row.id);
   req.user = toAuthUser(row);
   res.json({ ...(await snapshot(req)), token });
@@ -211,6 +218,7 @@ api.post('/auth/reset', async (req, res) => {
   if (!rateLimit(`reset:${req.ip}`, 10, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
   try {
     const userId = await resetPassword(String(req.body?.token ?? ''), await hashPassword(password));
+    if (await isBlocked(userId)) { res.status(403).json({ error: BLOCKED_MSG, code: 'blocked' }); return; }
     const row = (await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null }>(
       'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt" FROM users WHERE id = ?', userId))!;
     const token = await setSessionCookie(req, res, userId);
@@ -315,6 +323,7 @@ api.post('/billing/resume', async (req, res) => {
   if (!rateLimit(`resume:${req.ip}`, 10, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
   try {
     const userId = await resumeAfterPayment(String(req.body?.order ?? ''), String(req.body?.r ?? ''));
+    if (await isBlocked(userId)) { res.status(403).json({ error: BLOCKED_MSG, code: 'blocked' }); return; }
     const row = (await db.get<{ id: number; email: string; name: string; isPro: number; proUntil: string | null; emailVerifiedAt: string | null }>(
       'SELECT id, email, name, is_pro AS "isPro", pro_until AS "proUntil", email_verified_at AS "emailVerifiedAt" FROM users WHERE id = ?', userId))!;
     const token = await setSessionCookie(req, res, userId);
@@ -364,6 +373,29 @@ api.get('/scores/:id/download', requireUser, (req, res) => {
   createReadStream(file).on('error', () => { if (!res.headersSent) res.status(500).end(); else res.destroy(); }).pipe(res);
 });
 
+// ---- Маркетинговые ссылки: фронт на /go/<slug> записывает переход и сразу уводит на главную ----
+api.post('/mkt/click', async (req, res) => {
+  if (!rateLimit(`mkt:${req.ip}`, 30, 60_000)) { res.status(429).json({ error: 'Слишком много запросов' }); return; }
+  try { res.json(await recordClick(req, (req.body ?? {}) as Record<string, unknown>)); }
+  catch (e) { if (e instanceof MarketingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
+});
+
+// ---- Админ-кабинет: только вошедший администратор (ADMIN_EMAILS + подтверждённая почта), иначе 404 ----
+const admin = express.Router();
+admin.use(requireAdmin);
+admin.get('/me', (req, res) => { res.json({ email: req.user!.email }); });
+admin.get('/dashboard', async (_req, res) => { res.json(await dashboard()); });
+admin.get('/users', async (req, res) => { res.json(await usersList(req.query)); });
+admin.post('/users/:id/block', async (req, res) => {
+  const r = await setBlocked(req.user!.id, Number(req.params.id), req.body?.blocked === true);
+  if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
+  res.json({ ok: true });
+});
+admin.get('/payments', async (req, res) => { res.json(await paymentsList(req.query)); });
+admin.get('/marketing', async (req, res) => { res.json(await marketing(req.query, FRONTEND)); });
+admin.get('/charts', async (req, res) => { res.json(await charts(req.query)); });
+api.use('/admin', admin);
+
 api.post('/events', async (req, res) => {
   const name = String(req.body?.name ?? '').slice(0, 64);
   if (!name) { res.status(400).json({ error: 'name required' }); return; }
@@ -392,6 +424,7 @@ if (process.env.NOTIFY_SCHEDULER !== '0') startScheduler();
 app.listen(port, async () => {
   console.log(`Server: http://localhost:${port}`);
   console.log(`Почта (SMTP): ${await verifyMail()}`);
+  console.log(adminEnabled() ? 'Админ-кабинет: включён (ADMIN_EMAILS)' : 'Админ-кабинет: выключен — не задана ADMIN_EMAILS');
   const b = billingInfo();
   console.log(b.enabled ? `Оплата ЮKassa: включена (тарифов: ${b.plans.length})` : `Оплата ЮKassa: выключена — не заданы: ${b.missing.join(', ')}`);
 });

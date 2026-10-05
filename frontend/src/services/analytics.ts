@@ -15,7 +15,7 @@ const consoleProvider: AnalyticsProvider = {
   track: (name, props) => { if (import.meta.env.DEV) console.debug('[analytics]', name, props ?? ''); },
 };
 
-function anonId(): string {
+export function anonId(): string {
   let id = localStore.get<string>('piano:anon', '');
   if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStore.set('piano:anon', id); }
   return id;

@@ -71,7 +71,7 @@ export async function notifyTick(now = new Date()) {
   if (from > to) return 0;   // переход через полночь — пропускаем
   const users = await db.all<{ id: number; email: string; name: string; verified: string | null }>(
     `SELECT id, email, name, email_verified_at AS verified FROM users
-     WHERE (notified_day IS NULL OR notified_day <> ?)
+     WHERE blocked_at IS NULL AND (notified_day IS NULL OR notified_day <> ?)
        AND ((settings::jsonb ->> 'remind') = 'true' OR (settings::jsonb ->> 'songOfDay') = 'true')
        AND COALESCE(settings::jsonb ->> 'remindTime', '19:00') BETWEEN ? AND ?`, day, from, to);
   let sent = 0;
@@ -110,7 +110,7 @@ export async function proExpiryTick(now = new Date()) {
   let sent = 0;
   // скоро закончится (осталось ≤ 3 дней), бессрочные не трогаем
   const soon = await db.all<{ id: number; email: string; pro_until: string }>(
-    `SELECT id, email, pro_until FROM users WHERE pro_until > ? AND pro_until <= ? AND pro_until < '2900'
+    `SELECT id, email, pro_until FROM users WHERE blocked_at IS NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
        AND COALESCE(pro_mail, '') NOT IN (pro_until || '|soon', pro_until || '|ended')`, iso(t), iso(t + 3 * DAY));
   for (const u of soon) {
     if ((await db.run("UPDATE users SET pro_mail = pro_until || '|soon' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;
@@ -119,7 +119,7 @@ export async function proExpiryTick(now = new Date()) {
   }
   // закончилась (за последние 3 дня — чтобы не писать давно ушедшим)
   const ended = await db.all<{ id: number; email: string; pro_until: string }>(
-    `SELECT id, email, pro_until FROM users WHERE pro_until <= ? AND pro_until > ?
+    `SELECT id, email, pro_until FROM users WHERE blocked_at IS NULL AND pro_until <= ? AND pro_until > ?
        AND COALESCE(pro_mail, '') <> pro_until || '|ended'`, iso(t), iso(t - 3 * DAY));
   for (const u of ended) {
     if ((await db.run("UPDATE users SET pro_mail = pro_until || '|ended' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;

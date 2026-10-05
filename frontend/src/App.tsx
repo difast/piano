@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PREVIEW } from './env';
 import { AppProvider } from './context/AppContext';
@@ -20,6 +20,11 @@ import Scores from './pages/Scores';
 import ScoreDetail from './pages/ScoreDetail';
 import Auth from './pages/Auth';
 import { Consent, Privacy, Terms } from './pages/Legal';
+import Go from './pages/Go';
+import { isAdminUrl } from './adminUrl';
+
+// Админ-кабинет грузится отдельным файлом и только по скрытому адресу; доступ проверяет сервер.
+const Admin = lazy(() => import('./pages/admin/Admin'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -41,9 +46,21 @@ export default function App() {
     <ToastProvider>
     <AppProvider>
       <Router>
+        <Shell />
+      </Router>
+    </AppProvider>
+    </ToastProvider>
+  );
+}
+
+function Shell() {
+  const { pathname, search } = useLocation();
+  if (isAdminUrl(pathname, search)) return <Suspense fallback={null}><Admin /></Suspense>;
+  return (
         <UpsellProvider>
         <ScrollToTop />
         <Routes>
+          <Route path="go/:slug" element={<Go />} />
           <Route element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="login" element={<Auth mode="login" />} />
@@ -68,8 +85,5 @@ export default function App() {
           </Route>
         </Routes>
         </UpsellProvider>
-      </Router>
-    </AppProvider>
-    </ToastProvider>
   );
 }

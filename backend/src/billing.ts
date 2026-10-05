@@ -97,6 +97,7 @@ async function yk<T>(method: 'GET' | 'POST', path: string, body?: unknown, idemp
 interface YkPayment {
   id: string; status: string; paid?: boolean; amount?: { value: string; currency: string };
   metadata?: Record<string, string>; confirmation?: { confirmation_url?: string };
+  payment_method?: { type?: string }; cancellation_details?: { party?: string; reason?: string };
 }
 interface YkRefund { id: string; payment_id: string; status: string; amount?: { value: string; currency: string } }
 interface OrderRow { id: string; user_id: number; plan: string; days: number; amount: string; currency: string; status: string; yk_id: string | null; confirmation_url: string | null }
@@ -122,7 +123,8 @@ export async function createCheckout(user: { id: number; email: string; isPro: b
   }
   const id = randomUUID();
   const resume = randomBytes(24).toString('base64url');
-  await db.run('INSERT INTO payments (id, user_id, plan, days, amount, resume_hash) VALUES (?, ?, ?, ?, ?, ?)', id, user.id, plan.id, plan.days, plan.price, sha(resume));
+  // источник (маркетинговый переход), с которым пользователь зарегистрировался, сохраняется и в платеже
+  await db.run('INSERT INTO payments (id, user_id, plan, days, amount, resume_hash, mkt_click_id) VALUES (?, ?, ?, ?, ?, ?, (SELECT mkt_click_id FROM users WHERE id = ?))', id, user.id, plan.id, plan.days, plan.price, sha(resume), user.id);
   const item = (plan.days === 0 ? "Бессрочный доступ Pro" : `Подписка ${plan.title}`).slice(0, 128);
   const body = {
     amount: { value: plan.price, currency: 'RUB' },
@@ -157,7 +159,7 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
   if (p.status === 'succeeded' && p.paid === true) {
     let mail: Parameters<typeof mails.proPaid>[0] | null = null;
     const r = await db.tx(async (t) => {
-      const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), o.id);
+      const done = await t.run("UPDATE payments SET status = 'succeeded', paid_at = ?, method = ? WHERE id = ? AND status IN ('new', 'pending')", new Date().toISOString(), p.payment_method?.type?.slice(0, 40) ?? null, o.id);
       if (done !== 1) return 'noop';    // уже обработан раньше
       const cur = (await t.get<{ pro_until: string | null }>('SELECT pro_until FROM users WHERE id = ? FOR UPDATE', o.user_id))?.pro_until;
       const base = Math.max(Date.now(), cur ? Date.parse(cur) || 0 : 0);        // новый срок начинается после окончания текущего (переход на больший тариф, две вкладки)
@@ -177,7 +179,8 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
     return r;
   }
   if (p.status === 'canceled') {
-    return (await db.run("UPDATE payments SET status = 'canceled' WHERE id = ? AND status IN ('new', 'pending')", o.id)) === 1 ? 'canceled' : 'noop';
+    return (await db.run("UPDATE payments SET status = 'canceled', fail_reason = ?, method = COALESCE(?, method) WHERE id = ? AND status IN ('new', 'pending')",
+      p.cancellation_details?.reason?.slice(0, 60) ?? null, p.payment_method?.type?.slice(0, 40) ?? null, o.id)) === 1 ? 'canceled' : 'noop';
   }
   return 'noop';
 }
