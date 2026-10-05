@@ -22,8 +22,7 @@ import Auth from './pages/Auth';
 import { Consent, Privacy, Terms } from './pages/Legal';
 import Go from './pages/Go';
 
-// Админ-кабинет (/admin): вход по паролю, доступ и данные проверяет сервер.
-import Admin from './pages/admin/Admin';
+// Админ-кабинет — отдельная страница /admin/ (admin/index.html), не часть этого приложения.
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -54,7 +53,7 @@ export default function App() {
 
 function Shell() {
   const { pathname } = useLocation();
-  if (/^\/admin\/?$/.test(pathname)) return <Admin />;
+  if (/^\/admin\/?$/.test(pathname)) return <AdminRedirect />;
   return (
         <UpsellProvider>
         <ScrollToTop />
@@ -84,5 +83,14 @@ function Shell() {
           </Route>
         </Routes>
         </UpsellProvider>
+  );
+}
+
+/** Хостинг отдал приложение сайта вместо страницы админки: переходим на /admin/ (один раз, без зацикливания). */
+function AdminRedirect() {
+  const { pathname } = useLocation();
+  useEffect(() => { if (pathname === '/admin') window.location.replace('/admin/'); }, [pathname]);
+  return pathname === '/admin' ? null : (
+    <div className="state" style={{ padding: 40 }}>Страница админ-кабинета не найдена на сервере. Проверьте, что фронтенд собран командой <code>npm run build</code> и выложена папка <code>dist</code> целиком (с <code>dist/admin/</code>).</div>
   );
 }

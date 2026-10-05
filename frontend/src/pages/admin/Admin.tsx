@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { useApp } from '../../context/AppContext';
 import { api, ApiError, getAdminToken, setAdminToken } from '../../services/api';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import './admin.css';
@@ -492,7 +491,6 @@ const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === window.location.h
 
 export default function Admin() {
   usePageMeta('Админ-кабинет', 'Служебная страница.');
-  const { user } = useApp();
   const [access, setAccess] = useState<'checking' | 'ok' | 'login' | 'verify'>('checking');
   const [tab, setTab] = useState<Tab>(tabFromHash);
   useEffect(() => {
@@ -509,7 +507,7 @@ export default function Admin() {
       .catch((e) => { if (!alive) return; if ((e as ApiError).status !== 403) setAdminToken(null); setAccess((e as ApiError).status === 403 && !getAdminToken() ? 'verify' : 'login'); });
     return () => { alive = false; };
   }, []);
-  useEffect(check, [check, user?.id]);
+  useEffect(check, [check]);
   const logout = async () => { await api.adminLogout().catch(() => undefined); setAccess('login'); };
 
   let body: ReactNode;

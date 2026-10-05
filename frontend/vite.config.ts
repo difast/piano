@@ -10,6 +10,8 @@ const siteUrl = (): Plugin => ({
 
 export default defineConfig({
   plugins: [react(), siteUrl()],
+  // две страницы: сайт и отдельный админ-кабинет (/admin/), который не зависит от приложения сайта
+  build: { rollupOptions: { input: { main: 'index.html', admin: 'admin/index.html' }, output: { manualChunks: { vendor: ['react', 'react-dom', 'react-router-dom'] } } } },
   server: { proxy: { '/api': 'http://localhost:3001' } },
   preview: { proxy: { '/api': 'http://localhost:3001' } },
 });

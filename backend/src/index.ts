@@ -409,6 +409,8 @@ api.use('/admin', admin);
 api.post('/events', async (req, res) => {
   const name = String(req.body?.name ?? '').slice(0, 64);
   if (!name) { res.status(400).json({ error: 'name required' }); return; }
+  // ошибки интерфейса видны в логах сервера (для диагностики «белого экрана»)
+  if (name === 'ui_error' || name === 'admin_error') console.error(`[${name}]`, JSON.stringify(req.body?.props ?? {}).slice(0, 1200));
   await db.run('INSERT INTO events (user_id, anon_id, name, props) VALUES (?, ?, ?, ?)',
     req.user?.id ?? null, String(req.body?.anonId ?? '').slice(0, 64) || null, name, JSON.stringify(req.body?.props ?? {}).slice(0, 1000));
   res.status(204).end();
