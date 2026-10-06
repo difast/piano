@@ -1,0 +1,11 @@
+# Лишнее в контексте сборки Docker (Timeweb): ускоряет передачу контекста
+.git
+.gitignore
+**/node_modules
+**/dist
+**/dist-preview
+piano-preview.html
+**/*.log
+**/.env
+**/.env.*
+.DS_Store
