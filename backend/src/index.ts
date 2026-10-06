@@ -12,7 +12,7 @@ import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
 import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
-import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, setDemoCard, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
+import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -410,14 +410,6 @@ admin.post('/users/:id/block', async (req, res) => {
   if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
   res.json({ ok: true });
 });
-// тестовая карта в профиле пользователя — для скриншотов процедуры отвязки (ЮKassa); списаний по ней нет
-admin.post('/users/:id/demo-card', async (req, res) => {
-  const id = Number(req.params.id);
-  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: 'Некорректный пользователь' }); return; }
-  const r = await setDemoCard(id, req.body?.on === true);
-  if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
-  res.json({ ok: true });
-});
 admin.get('/payments', async (req, res) => { res.json(await paymentsList(req.query)); });
 admin.get('/marketing', async (req, res) => { res.json(await marketing(req.query, FRONTEND)); });
 admin.get('/charts', async (req, res) => { res.json(await charts(req.query)); });
@@ -427,7 +419,7 @@ api.post('/events', async (req, res) => {
   const name = String(req.body?.name ?? '').slice(0, 64);
   if (!name) { res.status(400).json({ error: 'name required' }); return; }
   // ошибки интерфейса видны в логах сервера (для диагностики «белого экрана»)
-  if (name === 'ui_error' || name === 'admin_error' || name === 'admin_debug') console.error(`[${name}]`, JSON.stringify(req.body?.props ?? {}).slice(0, 1200));
+  if (name === 'ui_error' || name === 'admin_error') console.error(`[${name}]`, JSON.stringify(req.body?.props ?? {}).slice(0, 1200));
   await db.run('INSERT INTO events (user_id, anon_id, name, props) VALUES (?, ?, ?, ?)',
     req.user?.id ?? null, String(req.body?.anonId ?? '').slice(0, 64) || null, name, JSON.stringify(req.body?.props ?? {}).slice(0, 1000));
   res.status(204).end();

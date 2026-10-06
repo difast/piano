@@ -31,4 +31,3 @@ class Boundary extends Component<{ children: ReactNode }, { error: Error | null 
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><Boundary><Admin /></Boundary></StrictMode>);
-(window as unknown as { __adminDebug?: (s: string) => void }).__adminDebug?.('react-render-called');

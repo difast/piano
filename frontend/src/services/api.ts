@@ -177,6 +177,5 @@ export const api = {
   },
   adminLogin: async (password: string) => { const r = await request<{ token: string }>('POST', '/admin/login', { password }); setAdminToken(r.token); return r; },
   adminLogout: async () => { try { await request<{ ok: true }>('POST', '/admin/logout', {}); } finally { setAdminToken(null); } },
-  adminDemoCard: (userId: number, on: boolean) => request<{ ok: true }>('POST', `/admin/users/${userId}/demo-card`, { on }),
   adminBlock: (userId: number, blocked: boolean) => request<{ ok: true }>('POST', `/admin/users/${userId}/block`, { blocked }),
 };
