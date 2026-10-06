@@ -8,10 +8,12 @@ export interface Achievements { tracks: AchTrack[]; challenges: Challenge[]; tot
 export interface SettingsInfo { settings: NotifySettings; emailVerified: boolean; mailEnabled: boolean; pushKey: string; songOfDay: { id: string; title: string; artist: string } }
 
 export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
-/** Автопродление Pro: тариф, сумма и дата следующего списания, карта (последние цифры). */
-export interface AutopayInfo { plan: string; planTitle: string; amount: string | null; currency: string; card: string | null; since: string | null; chargeAt: string | null }
-export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[]; autopay?: AutopayInfo | null }
-export interface OrderStatus { status: 'new' | 'pending' | 'succeeded' | 'canceled' | 'refunded'; plan: string; amount: string; proUntil: string | null }
+/** Привязанная карта: «MasterCard •• 4444»; primary — основная (с неё списываем в первую очередь). */
+export interface SavedCard { id: number; title: string; primary: boolean; since: string }
+/** Автопродление Pro: тариф, сумма и дата следующего списания, привязанные карты. */
+export interface AutopayInfo { plan: string; planTitle: string; amount: string | null; currency: string; card: string | null; cards: SavedCard[]; since: string | null; chargeAt: string | null }
+export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[]; autopay?: AutopayInfo | null; /** можно привязать карту */ canAddCard?: boolean }
+export interface OrderStatus { status: 'new' | 'pending' | 'succeeded' | 'canceled' | 'refunded' | 'card_saved'; plan: string; amount: string; proUntil: string | null; /** card — привязка карты (проверочный платёж 1 ₽) */ kind?: 'pro' | 'card' }
 
 export interface ProgressState {
   completedLessons: string[];
@@ -145,7 +147,9 @@ export const api = {
     return res.blob();
   },
   billingPlans: () => request<BillingInfo>('GET', '/billing/plans'),
-  cancelAutopay: () => request<{ ok: true; autopay: null }>('POST', '/billing/autopay/cancel', {}),
+  addCard: () => request<{ orderId: string; url: string }>('POST', '/billing/cards', {}),
+  primaryCard: (id: number) => request<{ ok: true; autopay: AutopayInfo | null }>('POST', `/billing/cards/${id}/primary`, {}),
+  deleteCard: (id: number) => request<{ ok: true; last: boolean; autopay: AutopayInfo | null }>('POST', `/billing/cards/${id}/delete`, {}),
   checkout: (plan: string) => request<{ orderId: string; url: string }>('POST', '/billing/checkout', { plan }),
   order: (id: string) => request<OrderStatus>('GET', `/billing/orders/${encodeURIComponent(id)}`),
   resumePayment: async (order: string, r: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/billing/resume', { order, r })),

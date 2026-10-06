@@ -136,8 +136,10 @@ export async function proExpiryTick(now = new Date()) {
 async function autopayReminders(t: number) {
   const iso = (ms: number) => new Date(ms).toISOString();
   // списание — за сутки до окончания срока, значит напоминаем, когда до окончания осталось ≤ 4 дней
-  const rows = await db.all<{ id: number; email: string; pro_until: string; plan: string; card: string | null }>(
-    `SELECT id, email, pro_until, autopay_plan AS plan, autopay_card AS card FROM users
+  const rows = await db.all<{ id: number; email: string; pro_until: string; plan: string; card: string | null; cards: number }>(
+    `SELECT id, email, pro_until, autopay_plan AS plan,
+       (SELECT title FROM user_cards c WHERE c.user_id = users.id AND c.is_primary LIMIT 1) AS card,
+       (SELECT COUNT(*)::int FROM user_cards c WHERE c.user_id = users.id) AS cards FROM users
      WHERE blocked_at IS NULL AND autopay_plan IS NOT NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
        AND COALESCE(autopay_notice, '') <> pro_until`, iso(t + AUTOPAY_CHARGE_BEFORE), iso(t + AUTOPAY_CHARGE_BEFORE + AUTOPAY_REMIND_BEFORE));
   let sent = 0;
@@ -146,7 +148,7 @@ async function autopayReminders(t: number) {
     if (!plan) continue;   // тариф больше не продаётся — списания не будет, напоминать не о чем
     if ((await db.run('UPDATE users SET autopay_notice = pro_until, autopay_amount = ? WHERE id = ? AND pro_until = ?', plan.price, u.id, u.pro_until)) !== 1) continue;
     try {
-      await sendMail(u.email, 'Скоро продлим Pro', mails.autopayReminder({ planTitle: plan.title, amount: plan.price, chargeAt: autopayChargeAt(u.pro_until), until: u.pro_until, card: u.card }), SUPPORT_EMAIL || undefined);
+      await sendMail(u.email, 'Скоро продлим Pro', mails.autopayReminder({ planTitle: plan.title, amount: plan.price, chargeAt: autopayChargeAt(u.pro_until), until: u.pro_until, card: u.card, others: Math.max(0, Number(u.cards) - 1) }), SUPPORT_EMAIL || undefined);
       sent++;
     } catch (e) {
       // письмо не ушло — снимаем отметку: без доставленного уведомления списания не будет, попробуем позже

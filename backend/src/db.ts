@@ -265,4 +265,24 @@ await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_last_try TEXT')
 await db.run(`UPDATE users SET autopay_plan = NULL, autopay_method = NULL, autopay_card = NULL, autopay_since = NULL, autopay_fails = 0, autopay_notice = NULL, autopay_last_try = NULL WHERE autopay_method = 'demo'`);
 /** платёж списан автоматически (автопродление), а не оплачен покупателем на странице ЮKassa */
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS recurring BOOLEAN NOT NULL DEFAULT FALSE');
+/** pro — оплата Pro; card — проверочный платёж 1 ₽ для привязки карты (деньги замораживаются и сразу возвращаются) */
+await db.run("ALTER TABLE payments ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'pro'");
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS card_id INTEGER');   // с какой привязанной карты шло автосписание
+// Привязанные карты для автопродления (несколько; одна — основная). Реквизиты хранит ЮKassa, у нас — id способа оплаты и подпись «Карта •• 4242».
+await db.run(`CREATE TABLE IF NOT EXISTS user_cards (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    method TEXT NOT NULL,                       -- id сохранённого способа оплаты в ЮKassa
+    title TEXT NOT NULL,                        -- «MasterCard •• 4444»
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,  -- основная: с неё списываем в первую очередь
+    failed_cycle TEXT,                          -- pro_until периода, в котором списание с карты не прошло (запасные пробуем по одному разу)
+    created_at TEXT NOT NULL DEFAULT ${NOW},
+    UNIQUE (user_id, method)
+  )`);
+await db.run('CREATE INDEX IF NOT EXISTS idx_user_cards_user ON user_cards(user_id)');
+// переносим карту из прежней схемы (одна карта в users) — один раз
+await db.run(`INSERT INTO user_cards (user_id, method, title, is_primary)
+  SELECT id, autopay_method, COALESCE(autopay_card, 'Сохранённый способ оплаты'), TRUE FROM users WHERE autopay_method IS NOT NULL AND autopay_plan IS NOT NULL
+  ON CONFLICT (user_id, method) DO NOTHING`);
+await db.run('UPDATE users SET autopay_method = NULL, autopay_card = NULL WHERE autopay_method IS NOT NULL');
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

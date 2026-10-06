@@ -74,7 +74,7 @@ interface UserRaw {
   last_visit: string | null; last_practice: string | null;
   pay_total: string | null; pay_count: number; first_paid: string | null; coupon_at: string | null;
   last_amount: string | null; last_paid_at: string | null; last_plan: string | null; last_status: string | null;
-  autopay_plan: string | null; autopay_card: string | null; autopay_since: string | null; autopay_fails: number;
+  autopay_plan: string | null; autopay_card: string | null; autopay_cards: number; autopay_since: string | null; autopay_fails: number;
 }
 export interface AdminUser {
   id: number; email: string; createdAt: string; emailVerified: boolean;
@@ -82,7 +82,7 @@ export interface AdminUser {
   subStart: string | null; subEnd: string | null; lastAmount: number | null; lastPaidAt: string | null; paidTotal: number; paidCount: number;
   lastActive: string | null; source: { slug: string; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null } | null;
   /** автопродление: тариф, карта, с какого момента, неудачных списаний подряд */
-  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number } | null;
+  autopay: { plan: string; planTitle: string; card: string | null; cards: number; since: string | null; fails: number } | null;
 }
 
 function toAdminUser(r: UserRaw, now = Date.now()): AdminUser {
@@ -103,14 +103,15 @@ function toAdminUser(r: UserRaw, now = Date.now()): AdminUser {
     paidTotal: money(r.pay_total), paidCount: Number(r.pay_count ?? 0),
     lastActive: [r.last_visit, r.last_practice].filter(Boolean).sort().at(-1) ?? null,
     source: r.slug ? { slug: r.slug, utm_source: r.utm_source, utm_medium: r.utm_medium, utm_campaign: r.utm_campaign } : null,
-    autopay: r.autopay_plan ? { plan: r.autopay_plan, planTitle: PLAN_TITLE[r.autopay_plan] ?? r.autopay_plan, card: r.autopay_card, since: r.autopay_since, fails: Number(r.autopay_fails ?? 0) } : null,
+    autopay: r.autopay_plan ? { plan: r.autopay_plan, planTitle: PLAN_TITLE[r.autopay_plan] ?? r.autopay_plan, card: r.autopay_card, cards: Number(r.autopay_cards ?? 0), since: r.autopay_since, fails: Number(r.autopay_fails ?? 0) } : null,
   };
 }
 
 async function loadUsers(): Promise<AdminUser[]> {
   const rows = await db.all<UserRaw>(`
     SELECT u.id, u.email, u.created_at, u.blocked_at, u.is_pro, u.pro_until, u.email_verified_at,
-      u.autopay_plan, u.autopay_card, u.autopay_since, u.autopay_fails,
+      u.autopay_plan, (SELECT title FROM user_cards c WHERE c.user_id = u.id AND c.is_primary LIMIT 1) AS autopay_card,
+      (SELECT COUNT(*)::int FROM user_cards c WHERE c.user_id = u.id) AS autopay_cards, u.autopay_since, u.autopay_fails,
       c.slug, c.utm_source, c.utm_medium, c.utm_campaign,
       (SELECT max(day) FROM visits v WHERE v.user_id = u.id) AS last_visit,
       (SELECT max(day) FROM practice p WHERE p.user_id = u.id AND p.seconds > 0) AS last_practice,
@@ -120,7 +121,7 @@ async function loadUsers(): Promise<AdminUser[]> {
     LEFT JOIN mkt_clicks c ON c.id = u.mkt_click_id
     LEFT JOIN LATERAL (SELECT SUM(amount::numeric)::text AS total, COUNT(*)::int AS cnt, MIN(paid_at) AS first_paid FROM payments WHERE user_id = u.id AND status = 'succeeded') pay ON TRUE
     LEFT JOIN LATERAL (SELECT amount, paid_at, plan FROM payments WHERE user_id = u.id AND status = 'succeeded' ORDER BY paid_at DESC LIMIT 1) lp ON TRUE
-    LEFT JOIN LATERAL (SELECT status FROM payments WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1) la ON TRUE
+    LEFT JOIN LATERAL (SELECT status FROM payments WHERE user_id = u.id AND kind = 'pro' ORDER BY created_at DESC LIMIT 1) la ON TRUE
     LEFT JOIN LATERAL (SELECT MIN(used_at) AS coupon_at FROM coupon_uses WHERE user_id = u.id) cu ON TRUE
     ORDER BY u.id DESC`);
   const now = Date.now();
@@ -170,6 +171,7 @@ const loadPayments = () => db.all<PaymentRaw>(`
     c.slug, c.utm_source, c.utm_campaign
   FROM payments p LEFT JOIN users u ON u.id = p.user_id
   LEFT JOIN mkt_clicks c ON c.id = COALESCE(p.mkt_click_id, u.mkt_click_id)
+  WHERE p.kind = 'pro'   -- проверочные платежи 1 ₽ при привязке карты — не оплаты
   ORDER BY COALESCE(p.paid_at, p.created_at) DESC`);
 const toPayment = (p: PaymentRaw) => ({
   id: p.id, ykId: p.yk_id, userId: p.user_id, email: p.email, plan: p.plan, planTitle: PLAN_TITLE[p.plan] ?? p.plan,

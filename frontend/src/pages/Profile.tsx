@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { useBillingState } from '../hooks/useBilling';
-import { AutopayCard } from '../components/AutopayCard';
+import { AutopayCard, EnableAutopay } from '../components/AutopayCard';
 import { formatDate, isForever } from '../lib';
 import { PlanCards } from '../components/PlanCards';
 import { track } from '../services/analytics';
@@ -18,7 +18,7 @@ export default function Profile() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [unlinked, setUnlinked] = useState(false);
+  const [cardMsg, setCardMsg] = useState('');
   const [billing, reloadBilling] = useBillingState();
   const plansRef = useRef<HTMLDivElement>(null);
   const { hash } = useLocation();
@@ -47,8 +47,9 @@ export default function Profile() {
         <button className="btn small" onClick={async () => { await logout(); nav('/'); }}>Выйти</button>
       </div>
       <div className="card" id="plans" ref={plansRef}>
-        {billing?.autopay && <AutopayCard info={billing.autopay} proUntil={user.proUntil ?? null} onUnlinked={() => { setUnlinked(true); reloadBilling(); }} />}
-        {unlinked && !billing?.autopay && <Notice kind="success">Карта отвязана. Автопродление отключено, списаний больше не будет{activeUntil && !isForever(activeUntil) ? `. Pro действует до ${formatDate(activeUntil)}` : ''}.</Notice>}
+        {billing?.autopay && <AutopayCard info={billing.autopay} proUntil={user.proUntil ?? null} canAddCard={!!billing.canAddCard} onChanged={(m) => { setCardMsg(m); reloadBilling(); }} />}
+        {!billing?.autopay && billing?.canAddCard && <EnableAutopay planTitle={billing.plans.find((p) => p.id === billing.currentPlan)?.title ?? null} />}
+        {cardMsg && <Notice kind="success">{cardMsg}</Notice>}
         {isPro ? (
           <>
             <h3>👑 Pro активен</h3>
@@ -74,7 +75,7 @@ export default function Profile() {
             {billing?.enabled && (
               <>
                 <PlanCards plans={billing.plans} busy={busy} onBuy={buy} />
-                <p className="muted small" style={{ marginTop: 10 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Чек придёт на {user.email}. Автопродление (для месяца и года) включится, только если при оплате картой отметить «Запомнить данные карты»; отвязать карту можно здесь, в профиле.</p>
+                <p className="muted small" style={{ marginTop: 10 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Чек придёт на {user.email}. Автопродление (для месяца и года) включится, только если при оплате картой отметить «Запомнить данные карты» (или позже привязать карту здесь, в профиле); удалить карту можно в любой момент.</p>
               </>
             )}
             {msg && <Notice kind="error">{msg}</Notice>}

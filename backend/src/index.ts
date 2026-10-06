@@ -12,7 +12,7 @@ import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
 import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, errorsList, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
-import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
+import { BillingError, autopayInfo, availablePlanIds, billingInfo, cardCheckPlan, createCardCheck, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, removeCard, resumeAfterPayment, setPrimaryCard } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -312,14 +312,27 @@ api.get('/billing/plans', async (req, res) => {
     available: await availablePlanIds(req.user, plans),
     // автопродление вошедшего пользователя (null — выключено)
     autopay: req.user ? await autopayInfo(req.user.id) : null,
+    // можно ли привязать карту (Pro на месяц или год действует, карт меньше 5)
+    canAddCard: req.user && info.enabled ? !!(await cardCheckPlan(req.user.id)) : false,
   });
 });
 
-// Отключить автопродление: больше списаний не будет, Pro действует до конца оплаченного срока
-api.post('/billing/autopay/cancel', requireUser, async (req, res) => {
-  if (!rateLimit(`autopay:${req.user!.id}`, 10, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
-  await cancelAutopay(req.user!.id);
-  res.json({ ok: true, autopay: null });
+// привязанные карты для автопродления: привязать новую (проверочный платёж 1 ₽), сделать основной, удалить одну
+api.post('/billing/cards', requireUser, async (req, res) => {
+  if (!rateLimit(`card:${req.user!.id}`, 5, 10 * 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте позже.' }); return; }
+  try { res.json(await createCardCheck(req.user!)); }
+  catch (e) { if (e instanceof BillingError) { res.status(e.status).json({ error: e.message }); return; } throw e; }
+});
+api.post('/billing/cards/:id/primary', requireUser, async (req, res) => {
+  if (!rateLimit(`cards:${req.user!.id}`, 20, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
+  if (!(await setPrimaryCard(req.user!.id, Number(req.params.id) || 0))) { res.status(404).json({ error: 'Карта не найдена' }); return; }
+  res.json({ ok: true, autopay: await autopayInfo(req.user!.id) });
+});
+api.post('/billing/cards/:id/delete', requireUser, async (req, res) => {
+  if (!rateLimit(`cards:${req.user!.id}`, 20, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
+  const r = await removeCard(req.user!.id, Number(req.params.id) || 0);
+  if (r === 'noop') { res.status(404).json({ error: 'Карта не найдена' }); return; }
+  res.json({ ok: true, last: r === 'last', autopay: await autopayInfo(req.user!.id) });
 });
 
 api.post('/billing/checkout', requireUser, async (req, res) => {

@@ -618,3 +618,9 @@ button, a, summary, label, select { touch-action: manipulation; }
 .pp-stage h4 { margin: 14px 0 4px; font-size: .95rem; }
 .autopay-card { margin: 12px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
 .autopay-card h4 { margin: 0 0 6px; } .autopay-card p { margin: 0 0 8px; }
+.card-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.card-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.card-list li:last-child { border-bottom: 0; }
+.card-list .card-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.card-list .card-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.card-list .badge.small { font-size: .72rem; padding: 2px 8px; }

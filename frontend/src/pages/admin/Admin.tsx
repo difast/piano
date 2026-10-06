@@ -9,7 +9,7 @@ interface Source { slug: string; utm_source: string | null; utm_medium?: string 
 interface AdminUser {
   id: number; email: string; createdAt: string; emailVerified: boolean; account: 'active' | 'blocked'; plan: 'free' | 'pro'; planTitle: string; sub: Sub;
   subStart: string | null; subEnd: string | null; lastAmount: number | null; lastPaidAt: string | null; paidTotal: number; paidCount: number; lastActive: string | null; source: Source | null;
-  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number } | null;
+  autopay: { plan: string; planTitle: string; card: string | null; cards?: number; since: string | null; fails: number } | null;
 }
 interface Payment {
   id: string; ykId: string | null; userId: number | null; email: string | null; plan: string; planTitle: string; amount: number; currency: string; status: string;
@@ -295,7 +295,7 @@ function UsersTab() {
                   <td className="nw">{fmtDate(u.lastPaidAt)}</td>
                   <td className="r nw">{u.paidTotal ? fmtMoney(u.paidTotal) : '—'}{u.paidCount > 1 && <span className="cab-muted small"> ({u.paidCount})</span>}</td>
                   <td className="nw">
-                    {u.autopay ? <><Pill tone={u.autopay.fails ? 'warn' : 'ok'}>вкл</Pill> <span className="cab-muted small">{u.autopay.planTitle.replace('Pro · ', '')}{u.autopay.card && ` · ${u.autopay.card}`}{u.autopay.fails > 0 && ` · неудач: ${u.autopay.fails}`}</span></>
+                    {u.autopay ? <><Pill tone={u.autopay.fails ? 'warn' : 'ok'}>вкл</Pill> <span className="cab-muted small">{u.autopay.planTitle.replace('Pro · ', '')}{u.autopay.card && ` · ${u.autopay.card}`}{(u.autopay.cards ?? 0) > 1 && ` (+${(u.autopay.cards ?? 1) - 1})`}{u.autopay.fails > 0 && ` · неудач: ${u.autopay.fails}`}</span></>
                       : <span className="cab-muted">—</span>}
                   </td>
                   <td className="nw">{fmtDate(u.lastActive)}</td>
