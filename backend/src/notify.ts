@@ -147,7 +147,11 @@ async function autopayReminders(t: number) {
     try {
       await sendMail(u.email, 'Скоро продлим Pro', mails.autopayReminder({ planTitle: plan.title, amount: plan.price, chargeAt: autopayChargeAt(u.pro_until), until: u.pro_until, card: u.card }), SUPPORT_EMAIL || undefined);
       sent++;
-    } catch (e) { console.error('[mail] напоминание об автопродлении:', (e as Error).message); }
+    } catch (e) {
+      // письмо не ушло — снимаем отметку: без доставленного уведомления списания не будет, попробуем позже
+      await db.run('UPDATE users SET autopay_notice = NULL WHERE id = ? AND autopay_notice = ?', u.id, u.pro_until);
+      console.error('[mail] напоминание об автопродлении:', (e as Error).message);
+    }
   }
   return sent;
 }

@@ -31,7 +31,7 @@ export function ProPricing({ plans, cta, children, onBuy, busy }: {
       )}
       <p className="price">{formatPrice(p.price, p.currency)}<small className="muted">{p.days === 0 ? ' навсегда' : p.days >= 365 ? ' / год' : ' / месяц'}</small></p>
       <p className="plan-benefit">
-        {p.days >= 365 && <>≈ {formatPrice(String(b.perMonth))} в месяц{b.save > 0 && <> · <b>выгода {formatPrice(String(b.save))}</b> в сравнении с помесячной оплатой</>}</>}
+        {p.days >= 365 && <>≈ {formatPrice(String(b.perMonth))} в месяц{b.save > 0 && <> · <b>выгода {formatPrice(String(b.save))}</b> в сравнении с помесячной оплатой</>}. Автопродление — только если сохраните карту при оплате.</>}
         {p.days === 0 && (b.months > 0
           ? <>Один платёж — стоит как {b.months} {plural(b.months, 'месяц', 'месяца', 'месяцев')} помесячно, а действует <b>всегда</b></>
           : <>Один платёж — без продлений и сроков</>)}

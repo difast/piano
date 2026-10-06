@@ -52,11 +52,14 @@ export async function currentPlan(userId: number): Promise<string | null> {
 
 // ---------- автопродление ----------
 // Сами автосписания включатся, когда ЮKassa подключит магазину рекуррентные платежи.
-// Правила (они же в оферте): списание за сутки до окончания срока, напоминание за 3 дня до списания,
+// Правила (они же в оферте): списание за сутки до окончания срока; уведомление — не позднее чем за 3 дня
+// до списания (отправляем за 4 дня, письма уходят только днём) и без отправленного уведомления не списываем;
 // при неудаче — до 3 попыток, затем автопродление отключается. Отключить можно в профиле в любой момент.
 const DAY_MS = 86_400_000;
 export const AUTOPAY_CHARGE_BEFORE = DAY_MS;
-export const AUTOPAY_REMIND_BEFORE = 3 * DAY_MS;
+export const AUTOPAY_REMIND_BEFORE = 4 * DAY_MS;
+/** Причины отказа, при которых повторять бессмысленно: карта отозвана, просрочена или ограничена. */
+const FINAL_FAIL_REASONS = new Set(['permission_revoked', 'card_expired', 'payment_method_restricted', 'payment_method_limit_exceeded']);
 export const AUTOPAY_MAX_FAILS = 3;
 export const autopayChargeAt = (proUntil: string) => new Date(Date.parse(proUntil) - AUTOPAY_CHARGE_BEFORE).toISOString();
 
@@ -90,11 +93,11 @@ export async function cancelAutopay(userId: number): Promise<boolean> {
  * Неудачное автосписание (вызывается кодом автосписаний): счётчик попыток, письмо,
  * после AUTOPAY_MAX_FAILS неудач автопродление отключается. Pro действует до конца оплаченного срока.
  */
-export async function autopayFailed(userId: number): Promise<'retry' | 'disabled' | 'noop'> {
+export async function autopayFailed(userId: number, reason?: string | null): Promise<'retry' | 'disabled' | 'noop'> {
   const u = await db.get<{ email: string; plan: string | null; card: string | null; until: string | null; fails: number }>(
     'UPDATE users SET autopay_fails = autopay_fails + 1 WHERE id = ? AND autopay_plan IS NOT NULL RETURNING email, autopay_plan AS plan, autopay_card AS card, pro_until AS until, autopay_fails AS fails', userId);
   if (!u?.plan) return 'noop';
-  const willRetry = u.fails < AUTOPAY_MAX_FAILS;
+  const willRetry = u.fails < AUTOPAY_MAX_FAILS && !FINAL_FAIL_REASONS.has(reason ?? '');
   const amount = billingInfo().plans.find((p) => p.id === u.plan)?.price ?? '0';
   if (!willRetry) await db.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ?`, userId);
   await db.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', userId, 'autopay_failed', JSON.stringify({ attempt: u.fails, disabled: !willRetry }));
@@ -259,7 +262,7 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
   if (p.status === 'canceled') {
     const done = (await db.run("UPDATE payments SET status = 'canceled', fail_reason = ?, method = COALESCE(?, method) WHERE id = ? AND status IN ('new', 'pending')",
       p.cancellation_details?.reason?.slice(0, 60) ?? null, p.payment_method?.type?.slice(0, 40) ?? null, o.id)) === 1;
-    if (done && o.recurring) await autopayFailed(o.user_id);   // автосписание не прошло — письмо и повтор (или отключение)
+    if (done && o.recurring) await autopayFailed(o.user_id, p.cancellation_details?.reason);   // автосписание не прошло — письмо и повтор (или отключение)
     return done ? 'canceled' : 'noop';
   }
   return 'noop';
@@ -369,6 +372,7 @@ export async function autopayChargeTick(now = Date.now()): Promise<number> {
      WHERE u.autopay_plan IS NOT NULL AND u.autopay_method IS NOT NULL AND u.blocked_at IS NULL
        AND u.pro_until IS NOT NULL AND u.pro_until < '2900' AND u.pro_until <= ? AND u.pro_until > ?
        AND (u.autopay_last_try IS NULL OR u.autopay_last_try < ?)
+       AND u.autopay_notice = u.pro_until   -- уведомление о предстоящем списании уже отправлено
        AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.user_id = u.id AND p.recurring AND p.status IN ('new', 'pending'))`,
     iso(now + AUTOPAY_CHARGE_BEFORE), iso(now - 3 * DAY_MS), iso(now - AUTOPAY_RETRY_GAP));
   let started = 0;

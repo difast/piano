@@ -26,7 +26,7 @@ export function AutopayCard({ info, proUntil, onUnlinked }: { info: AutopayInfo;
         Автопродление включено: {info.planTitle}{info.amount && <> — <b>{formatPrice(info.amount, info.currency)}</b></>}
         {info.chargeAt && <><br />Следующее списание: <b>{formatDate(info.chargeAt)}</b></>}
       </p>
-      <p className="muted small">За 3 дня до списания пришлём напоминание на почту. Отвязать карту можно в любой момент — после этого списаний не будет, оплаченный срок Pro сохранится.</p>
+      <p className="muted small">Не позднее чем за 3 дня до списания пришлём напоминание на почту. Отвязать карту можно в любой момент — после этого списаний не будет, оплаченный срок Pro сохранится.</p>
       <button className="btn" onClick={unlink} disabled={busy}>{busy ? 'Отвязываем…' : 'Отвязать карту'}</button>
       {error && <Notice kind="error">{error}</Notice>}
     </div>
