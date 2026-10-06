@@ -616,3 +616,5 @@ button, a, summary, label, select { touch-action: manipulation; }
   .cs-top { gap: 16px; } .cs-now .btn { width: 100%; text-align: center; }
 }
 .pp-stage h4 { margin: 14px 0 4px; font-size: .95rem; }
+.autopay-card { margin: 12px 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
+.autopay-card h4 { margin: 0 0 6px; } .autopay-card p { margin: 0 0 8px; }

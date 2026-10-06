@@ -50,6 +50,59 @@ export async function currentPlan(userId: number): Promise<string | null> {
   return (await db.get<{ plan: string }>("SELECT plan FROM payments WHERE user_id = ? AND status = 'succeeded' ORDER BY paid_at DESC LIMIT 1", userId))?.plan ?? null;
 }
 
+// ---------- автопродление ----------
+// Сами автосписания включатся, когда ЮKassa подключит магазину рекуррентные платежи.
+// Правила (они же в оферте): списание за сутки до окончания срока, напоминание за 3 дня до списания,
+// при неудаче — до 3 попыток, затем автопродление отключается. Отключить можно в профиле в любой момент.
+const DAY_MS = 86_400_000;
+export const AUTOPAY_CHARGE_BEFORE = DAY_MS;
+export const AUTOPAY_REMIND_BEFORE = 3 * DAY_MS;
+export const AUTOPAY_MAX_FAILS = 3;
+export const autopayChargeAt = (proUntil: string) => new Date(Date.parse(proUntil) - AUTOPAY_CHARGE_BEFORE).toISOString();
+
+export interface AutopayInfo { plan: string; planTitle: string; amount: string | null; currency: string; card: string | null; since: string | null; chargeAt: string | null }
+const planTitle = (id: string) => DEFS.find((d) => d.id === id)?.title ?? 'Pro';
+
+/** Автопродление пользователя (null — выключено). */
+export async function autopayInfo(userId: number): Promise<AutopayInfo | null> {
+  const r = await db.get<{ plan: string | null; card: string | null; since: string | null; until: string | null }>(
+    'SELECT autopay_plan AS plan, autopay_card AS card, autopay_since AS since, pro_until AS until FROM users WHERE id = ?', userId);
+  if (!r?.plan) return null;
+  const price = billingInfo().plans.find((p) => p.id === r.plan)?.price ?? null;
+  return { plan: r.plan, planTitle: planTitle(r.plan), amount: price, currency: 'RUB', card: r.card, since: r.since,
+    chargeAt: r.until && !isForever(r.until) ? autopayChargeAt(r.until) : null };
+}
+
+const AUTOPAY_OFF = 'autopay_plan = NULL, autopay_method = NULL, autopay_card = NULL, autopay_fails = 0, autopay_notice = NULL';
+
+/** Пользователь отключил автопродление. Pro действует до конца оплаченного срока. */
+export async function cancelAutopay(userId: number): Promise<boolean> {
+  const done = await db.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ? AND autopay_plan IS NOT NULL`, userId);
+  if (done !== 1) return false;
+  await db.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', userId, 'autopay_canceled', '{}');
+  const u = await db.get<{ email: string; until: string | null }>('SELECT email, pro_until AS until FROM users WHERE id = ?', userId);
+  if (u && mailEnabled()) sendMail(u.email, 'Автопродление отключено', mails.autopayCanceled({ until: u.until ?? new Date().toISOString(), forever: isForever(u.until) }), SUPPORT_EMAIL || undefined)
+    .catch((e) => console.error('[mail] автопродление отключено:', (e as Error).message));
+  return true;
+}
+
+/**
+ * Неудачное автосписание (вызывается кодом автосписаний): счётчик попыток, письмо,
+ * после AUTOPAY_MAX_FAILS неудач автопродление отключается. Pro действует до конца оплаченного срока.
+ */
+export async function autopayFailed(userId: number): Promise<'retry' | 'disabled' | 'noop'> {
+  const u = await db.get<{ email: string; plan: string | null; card: string | null; until: string | null; fails: number }>(
+    'UPDATE users SET autopay_fails = autopay_fails + 1 WHERE id = ? AND autopay_plan IS NOT NULL RETURNING email, autopay_plan AS plan, autopay_card AS card, pro_until AS until, autopay_fails AS fails', userId);
+  if (!u?.plan) return 'noop';
+  const willRetry = u.fails < AUTOPAY_MAX_FAILS;
+  const amount = billingInfo().plans.find((p) => p.id === u.plan)?.price ?? '0';
+  if (!willRetry) await db.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ?`, userId);
+  await db.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', userId, 'autopay_failed', JSON.stringify({ attempt: u.fails, disabled: !willRetry }));
+  if (mailEnabled()) sendMail(u.email, willRetry ? 'Не удалось продлить Pro' : 'Автопродление Pro отключено', mails.autopayFailed({ planTitle: planTitle(u.plan), amount, until: u.until ?? new Date().toISOString(), card: u.card, willRetry }), SUPPORT_EMAIL || undefined)
+    .catch((e) => console.error('[mail] автосписание не прошло:', (e as Error).message));
+  return willRetry ? 'retry' : 'disabled';
+}
+
 /** Тарифы, которые пользователь может купить сейчас. */
 export async function availablePlanIds(user: { id: number; isPro: boolean; proUntil: string | null } | undefined, plans: { id: string }[]) {
   if (!user?.isPro) return plans.map((p) => p.id);
@@ -168,7 +221,12 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
       await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_succeeded', JSON.stringify({ plan: o.plan, amount: o.amount }));
       const forever = until === FOREVER;
       const startsLater = !forever && base > Date.now() + 60_000 ? new Date(base).toISOString() : null;
-      mail = { planTitle: DEFS.find((d) => d.id === o.plan)?.title ?? 'Pro', amount: o.amount, until, forever, startsLater };
+      // при включённом автопродлении в письме — дата и сумма следующего списания
+      const ap = await t.get<{ plan: string | null }>('SELECT autopay_plan AS plan FROM users WHERE id = ?', o.user_id);
+      const apPrice = ap?.plan ? billingInfo().plans.find((x) => x.id === ap.plan)?.price : null;
+      mail = { planTitle: DEFS.find((d) => d.id === o.plan)?.title ?? 'Pro', amount: o.amount, until, forever, startsLater,
+        autopay: apPrice && !forever ? { chargeAt: autopayChargeAt(until), amount: apPrice } : null };
+      if (ap?.plan) await t.run('UPDATE users SET autopay_fails = 0 WHERE id = ?', o.user_id);
       return 'activated' as const;
     });
     // письмо об оплате — после фиксации в базе, в фоне (ЮKassa ждёт быстрый ответ на уведомление)
@@ -199,6 +257,8 @@ async function applyRefund(o: OrderRow, r: YkRefund): Promise<boolean> {
       await t.run('UPDATE users SET pro_until = ? WHERE id = ?', left, o.user_id);
     }
     await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'payment_refunded', JSON.stringify({ plan: o.plan, amount: o.amount }));
+    // деньги вернули — автопродление выключаем, чтобы не списать снова
+    await t.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ?`, o.user_id);
     return true;
   });
 }

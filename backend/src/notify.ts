@@ -1,4 +1,5 @@
 import webpush from 'web-push';
+import { AUTOPAY_CHARGE_BEFORE, AUTOPAY_REMIND_BEFORE, autopayChargeAt, billingInfo } from './billing.ts';
 import { db } from './db.ts';
 import { APP_TZ, FRONTEND } from './config.ts';
 import { SONGS_META } from './content.ts';
@@ -110,7 +111,7 @@ export async function proExpiryTick(now = new Date()) {
   let sent = 0;
   // скоро закончится (осталось ≤ 3 дней), бессрочные не трогаем
   const soon = await db.all<{ id: number; email: string; pro_until: string }>(
-    `SELECT id, email, pro_until FROM users WHERE blocked_at IS NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
+    `SELECT id, email, pro_until FROM users WHERE blocked_at IS NULL AND autopay_plan IS NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
        AND COALESCE(pro_mail, '') NOT IN (pro_until || '|soon', pro_until || '|ended')`, iso(t), iso(t + 3 * DAY));
   for (const u of soon) {
     if ((await db.run("UPDATE users SET pro_mail = pro_until || '|soon' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;
@@ -125,6 +126,28 @@ export async function proExpiryTick(now = new Date()) {
     if ((await db.run("UPDATE users SET pro_mail = pro_until || '|ended' WHERE id = ? AND pro_until = ?", u.id, u.pro_until)) !== 1) continue;
     try { await sendMail(u.email, 'Подписка Pro закончилась', mails.proEnded(u.pro_until), SUPPORT_EMAIL || undefined); sent++; }
     catch (e) { console.error('[mail] конец Pro:', (e as Error).message); }
+  }
+  sent += await autopayReminders(t);
+  return sent;
+}
+
+/** Автопродление: за 3 дня до списания — письмо с датой, суммой и картой (один раз на каждый срок). */
+async function autopayReminders(t: number) {
+  const iso = (ms: number) => new Date(ms).toISOString();
+  // списание — за сутки до окончания срока, значит напоминаем, когда до окончания осталось ≤ 4 дней
+  const rows = await db.all<{ id: number; email: string; pro_until: string; plan: string; card: string | null }>(
+    `SELECT id, email, pro_until, autopay_plan AS plan, autopay_card AS card FROM users
+     WHERE blocked_at IS NULL AND autopay_plan IS NOT NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
+       AND COALESCE(autopay_notice, '') <> pro_until`, iso(t + AUTOPAY_CHARGE_BEFORE), iso(t + AUTOPAY_CHARGE_BEFORE + AUTOPAY_REMIND_BEFORE));
+  let sent = 0;
+  for (const u of rows) {
+    const plan = billingInfo().plans.find((p) => p.id === u.plan);
+    if (!plan) continue;   // тариф больше не продаётся — списания не будет, напоминать не о чем
+    if ((await db.run('UPDATE users SET autopay_notice = pro_until WHERE id = ? AND pro_until = ?', u.id, u.pro_until)) !== 1) continue;
+    try {
+      await sendMail(u.email, 'Скоро продлим Pro', mails.autopayReminder({ planTitle: plan.title, amount: plan.price, chargeAt: autopayChargeAt(u.pro_until), until: u.pro_until, card: u.card }), SUPPORT_EMAIL || undefined);
+      sent++;
+    } catch (e) { console.error('[mail] напоминание об автопродлении:', (e as Error).message); }
   }
   return sent;
 }

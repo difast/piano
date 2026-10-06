@@ -250,4 +250,15 @@ await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS mkt_click_id INTEGER
 /** способ оплаты из ЮKassa (bank_card, sbp, yoo_money …) и причина отмены неуспешного платежа */
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS method TEXT');
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS fail_reason TEXT');
+// ---- автопродление Pro (рекуррентные платежи ЮKassa) ----
+// Заполняется, когда покупатель при оплате согласился на автопродление и ЮKassa сохранила способ оплаты.
+// Данные карты хранит ЮKassa: у нас только её идентификатор способа оплаты и подпись вида «Карта •• 4242».
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_plan TEXT');       // какой тариф продлевать; NULL — автопродление выключено
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_method TEXT');     // id сохранённого способа оплаты в ЮKassa
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_card TEXT');       // «Карта •• 4242» — для профиля и писем
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_since TEXT');      // когда включено
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_fails INTEGER NOT NULL DEFAULT 0');   // неудачных списаний подряд
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_notice TEXT');     // pro_until, о списании перед которым уже предупредили
+/** платёж списан автоматически (автопродление), а не оплачен покупателем на странице ЮKassa */
+await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS recurring BOOLEAN NOT NULL DEFAULT FALSE');
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

@@ -12,7 +12,7 @@ import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
 import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
-import { BillingError, availablePlanIds, billingInfo, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
+import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -310,7 +310,16 @@ api.get('/billing/plans', async (req, res) => {
     // для вошедшего: текущий тариф и какие тарифы можно купить сейчас (при действующем Pro — только больше текущего)
     currentPlan: req.user ? await currentPlan(req.user.id) : null,
     available: await availablePlanIds(req.user, plans),
+    // автопродление вошедшего пользователя (null — выключено)
+    autopay: req.user ? await autopayInfo(req.user.id) : null,
   });
+});
+
+// Отключить автопродление: больше списаний не будет, Pro действует до конца оплаченного срока
+api.post('/billing/autopay/cancel', requireUser, async (req, res) => {
+  if (!rateLimit(`autopay:${req.user!.id}`, 10, 60_000)) { res.status(429).json({ error: 'Слишком много попыток. Попробуйте через минуту.' }); return; }
+  await cancelAutopay(req.user!.id);
+  res.json({ ok: true, autopay: null });
 });
 
 api.post('/billing/checkout', requireUser, async (req, res) => {

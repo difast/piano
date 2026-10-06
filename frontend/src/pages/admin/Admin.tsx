@@ -9,15 +9,16 @@ interface Source { slug: string; utm_source: string | null; utm_medium?: string 
 interface AdminUser {
   id: number; email: string; createdAt: string; emailVerified: boolean; account: 'active' | 'blocked'; plan: 'free' | 'pro'; planTitle: string; sub: Sub;
   subStart: string | null; subEnd: string | null; lastAmount: number | null; lastPaidAt: string | null; paidTotal: number; paidCount: number; lastActive: string | null; source: Source | null;
+  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number } | null;
 }
 interface Payment {
   id: string; ykId: string | null; userId: number | null; email: string | null; plan: string; planTitle: string; amount: number; currency: string; status: string;
-  date: string; createdAt: string; paidAt: string | null; provider: string; method: string | null; failReason: string | null; source: Source | null;
+  date: string; createdAt: string; paidAt: string | null; provider: string; method: string | null; failReason: string | null; source: Source | null; recurring?: boolean;
 }
 interface Metrics { clicks: number; unique: number; registrations: number; payments: number; payers: number; revenue: number; convReg: number; convPay: number }
 interface Dashboard {
   users: { total: number; today: number; d7: number; d30: number; activeToday: number; active7: number; active30: number; free: number; pro: number; blocked: number };
-  payments: { count: number; sum: number; today: { count: number; sum: number }; d7: { count: number; sum: number }; d30: { count: number; sum: number }; activeSubs: number; canceledSubs: number; failed: number; pending: number };
+  payments: { count: number; sum: number; today: { count: number; sum: number }; d7: { count: number; sum: number }; d30: { count: number; sum: number }; activeSubs: number; canceledSubs: number; failed: number; pending: number; autopay?: number };
   recentPayments: Payment[];
 }
 interface Charts { period: string; step: number; days: string[]; registrations: number[]; clicks: number[]; payments: number[]; revenue: number[]; funnel: Metrics }
@@ -157,7 +158,7 @@ function PaymentsTable({ rows, compact = false }: { rows: Payment[]; compact?: b
             <tr key={p.id}>
               <td className="nw">{fmtDateTime(p.date)}</td>
               <td>{p.email ?? <span className="cab-muted">аккаунт удалён</span>}{p.userId && <span className="cab-muted"> · #{p.userId}</span>}</td>
-              <td className="nw">{p.planTitle}</td>
+              <td className="nw">{p.planTitle}{p.recurring && <span className="cab-muted small"> · автосписание</span>}</td>
               <td className="r nw">{fmtMoney(p.amount, p.currency)}</td>
               <td><Pill tone={PAY_TONE[p.status] ?? 'muted'}>{PAY_LABEL[p.status] ?? p.status}</Pill>{p.failReason && <span className="cab-muted small"> {p.failReason}</span>}</td>
               {!compact && <>
@@ -201,7 +202,7 @@ function DashboardTab() {
           <Kpi label="Сегодня" value={fmtMoney(p.today.sum)} sub={`${p.today.count} шт.`} />
           <Kpi label="За 7 дней" value={fmtMoney(p.d7.sum)} sub={`${p.d7.count} шт.`} />
           <Kpi label="За 30 дней" value={fmtMoney(p.d30.sum)} sub={`${p.d30.count} шт.`} />
-          <Kpi label="Активные подписки" value={fmtNum(p.activeSubs)} />
+          <Kpi label="Активные подписки" value={fmtNum(p.activeSubs)} sub={`с автопродлением: ${p.autopay ?? 0}`} />
           <Kpi label="Отменённые (возвраты)" value={fmtNum(p.canceledSubs)} />
           <Kpi label="Неуспешные платежи" value={fmtNum(p.failed)} sub={p.pending ? `ожидают оплаты: ${p.pending}` : undefined} />
         </div>
@@ -234,8 +235,9 @@ function UsersTab() {
   const [sub, setSub] = useState('');
   const [account, setAccount] = useState('');
   const [source, setSource] = useState('');
+  const [autopay, setAutopay] = useState('');
   const [page, setPage] = useState(1);
-  const { data, error, reload } = useAdmin<{ total: number; page: number; pageSize: number; users: AdminUser[] }>('/users', { q: query, plan, sub, account, source, page });
+  const { data, error, reload } = useAdmin<{ total: number; page: number; pageSize: number; users: AdminUser[] }>('/users', { q: query, plan, sub, account, source, autopay, page });
   useEffect(() => { const t = window.setTimeout(() => { setQuery(q.trim()); setPage(1); }, 300); return () => window.clearTimeout(t); }, [q]);
   const toggleBlock = async (u: AdminUser) => {
     const block = u.account === 'active';
@@ -256,6 +258,7 @@ function UsersTab() {
         {sel(sub, setSub, [['', 'Все'], ['active', 'активна'], ['pending', 'ожидает оплаты'], ['canceled', 'отменена'], ['expired', 'истекла'], ['error', 'ошибка'], ['none', 'нет оплат']], 'Оплата')}
         {sel(account, setAccount, [['', 'Все'], ['active', 'активен'], ['blocked', 'заблокирован']], 'Аккаунт')}
         {sel(source, setSource, [['', 'Все'], ['marketing', 'по ссылке'], ['direct', 'напрямую']], 'Источник')}
+        {sel(autopay, setAutopay, [['', 'Все'], ['on', 'включено'], ['off', 'выключено']], 'Автопродление')}
       </div>
       {error && <p className="cab-err">{error}</p>}
       {data && (data.users.length === 0 ? <p className="cab-empty">Никого не найдено.</p> : (
@@ -263,7 +266,7 @@ function UsersTab() {
           <table className="cab-table">
             <thead><tr>
               <th>ID</th><th>Email</th><th>Регистрация</th><th>Аккаунт</th><th>Тариф</th><th>Оплата</th><th>Pro с</th><th>Pro до</th>
-              <th className="r">Посл. оплата</th><th>Дата оплаты</th><th className="r">Всего оплат</th><th>Активность</th><th>Источник</th><th />
+              <th className="r">Посл. оплата</th><th>Дата оплаты</th><th className="r">Всего оплат</th><th>Автопродление</th><th>Активность</th><th>Источник</th><th />
             </tr></thead>
             <tbody>
               {data.users.map((u) => (
@@ -279,6 +282,7 @@ function UsersTab() {
                   <td className="r nw">{u.lastAmount != null ? fmtMoney(u.lastAmount) : '—'}</td>
                   <td className="nw">{fmtDate(u.lastPaidAt)}</td>
                   <td className="r nw">{u.paidTotal ? fmtMoney(u.paidTotal) : '—'}{u.paidCount > 1 && <span className="cab-muted small"> ({u.paidCount})</span>}</td>
+                  <td className="nw">{u.autopay ? <><Pill tone={u.autopay.fails ? 'warn' : 'ok'}>вкл</Pill> <span className="cab-muted small">{u.autopay.planTitle.replace('Pro · ', '')}{u.autopay.card && ` · ${u.autopay.card}`}{u.autopay.fails > 0 && ` · неудач: ${u.autopay.fails}`}</span></> : <span className="cab-muted">—</span>}</td>
                   <td className="nw">{fmtDate(u.lastActive)}</td>
                   <td>{sourceText(u.source)}</td>
                   <td><button className="cab-btn small" onClick={() => toggleBlock(u)}>{u.account === 'active' ? 'Заблокировать' : 'Разблокировать'}</button></td>

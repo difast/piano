@@ -8,7 +8,9 @@ export interface Achievements { tracks: AchTrack[]; challenges: Challenge[]; tot
 export interface SettingsInfo { settings: NotifySettings; emailVerified: boolean; mailEnabled: boolean; pushKey: string; songOfDay: { id: string; title: string; artist: string } }
 
 export interface BillingPlan { id: string; title: string; days: number; price: string; currency: string }
-export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[] }
+/** Автопродление Pro: тариф, сумма и дата следующего списания, карта (последние цифры). */
+export interface AutopayInfo { plan: string; planTitle: string; amount: string | null; currency: string; card: string | null; since: string | null; chargeAt: string | null }
+export interface BillingInfo { enabled: boolean; plans: BillingPlan[]; proUntil: string | null; /** текущий тариф (если Pro действует) */ currentPlan?: string | null; /** что можно купить сейчас */ available?: string[]; autopay?: AutopayInfo | null }
 export interface OrderStatus { status: 'new' | 'pending' | 'succeeded' | 'canceled' | 'refunded'; plan: string; amount: string; proUntil: string | null }
 
 export interface ProgressState {
@@ -143,6 +145,7 @@ export const api = {
     return res.blob();
   },
   billingPlans: () => request<BillingInfo>('GET', '/billing/plans'),
+  cancelAutopay: () => request<{ ok: true; autopay: null }>('POST', '/billing/autopay/cancel', {}),
   checkout: (plan: string) => request<{ orderId: string; url: string }>('POST', '/billing/checkout', { plan }),
   order: (id: string) => request<OrderStatus>('GET', `/billing/orders/${encodeURIComponent(id)}`),
   resumePayment: async (order: string, r: string) => withToken(await request<Snapshot & { token?: string }>('POST', '/billing/resume', { order, r })),

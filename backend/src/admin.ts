@@ -74,12 +74,15 @@ interface UserRaw {
   last_visit: string | null; last_practice: string | null;
   pay_total: string | null; pay_count: number; first_paid: string | null; coupon_at: string | null;
   last_amount: string | null; last_paid_at: string | null; last_plan: string | null; last_status: string | null;
+  autopay_plan: string | null; autopay_card: string | null; autopay_since: string | null; autopay_fails: number;
 }
 export interface AdminUser {
   id: number; email: string; createdAt: string; emailVerified: boolean;
   account: 'active' | 'blocked'; plan: 'free' | 'pro'; planTitle: string; sub: SubStatus;
   subStart: string | null; subEnd: string | null; lastAmount: number | null; lastPaidAt: string | null; paidTotal: number; paidCount: number;
   lastActive: string | null; source: { slug: string; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null } | null;
+  /** автопродление: тариф, карта, с какого момента, неудачных списаний подряд */
+  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number } | null;
 }
 
 function toAdminUser(r: UserRaw, now = Date.now()): AdminUser {
@@ -100,12 +103,14 @@ function toAdminUser(r: UserRaw, now = Date.now()): AdminUser {
     paidTotal: money(r.pay_total), paidCount: Number(r.pay_count ?? 0),
     lastActive: [r.last_visit, r.last_practice].filter(Boolean).sort().at(-1) ?? null,
     source: r.slug ? { slug: r.slug, utm_source: r.utm_source, utm_medium: r.utm_medium, utm_campaign: r.utm_campaign } : null,
+    autopay: r.autopay_plan ? { plan: r.autopay_plan, planTitle: PLAN_TITLE[r.autopay_plan] ?? r.autopay_plan, card: r.autopay_card, since: r.autopay_since, fails: Number(r.autopay_fails ?? 0) } : null,
   };
 }
 
 async function loadUsers(): Promise<AdminUser[]> {
   const rows = await db.all<UserRaw>(`
     SELECT u.id, u.email, u.created_at, u.blocked_at, u.is_pro, u.pro_until, u.email_verified_at,
+      u.autopay_plan, u.autopay_card, u.autopay_since, u.autopay_fails,
       c.slug, c.utm_source, c.utm_medium, c.utm_campaign,
       (SELECT max(day) FROM visits v WHERE v.user_id = u.id) AS last_visit,
       (SELECT max(day) FROM practice p WHERE p.user_id = u.id AND p.seconds > 0) AS last_practice,
@@ -132,9 +137,10 @@ export async function usersList(q: Record<string, unknown>) {
   const sub = pick(q.sub, ['active', 'pending', 'canceled', 'expired', 'error', 'none'] as const);
   const account = pick(q.account, ['active', 'blocked'] as const);
   const source = pick(q.source, ['marketing', 'direct'] as const);
+  const autopay = pick(q.autopay, ['on', 'off'] as const);
   const list = (await loadUsers()).filter((u) => (!search || u.email.includes(search) || String(u.id) === search)
     && (!plan || u.plan === plan) && (!sub || u.sub === sub) && (!account || u.account === account)
-    && (!source || (source === 'marketing') === !!u.source));
+    && (!source || (source === 'marketing') === !!u.source) && (!autopay || (autopay === 'on') === !!u.autopay));
   const page = pageOf(q.page);
   return { total: list.length, page, pageSize: PAGE, users: list.slice((page - 1) * PAGE, page * PAGE) };
 }
@@ -156,11 +162,11 @@ export async function setBlocked(adminId: number, userId: number, blocked: boole
 // ---------- платежи ----------
 interface PaymentRaw {
   id: string; user_id: number | null; email: string | null; plan: string; days: number; amount: string; currency: string; status: string;
-  yk_id: string | null; method: string | null; fail_reason: string | null; created_at: string; paid_at: string | null;
+  yk_id: string | null; method: string | null; fail_reason: string | null; created_at: string; paid_at: string | null; recurring: boolean;
   slug: string | null; utm_source: string | null; utm_campaign: string | null;
 }
 const loadPayments = () => db.all<PaymentRaw>(`
-  SELECT p.id, p.user_id, u.email, p.plan, p.days, p.amount, p.currency, p.status, p.yk_id, p.method, p.fail_reason, p.created_at, p.paid_at,
+  SELECT p.id, p.user_id, u.email, p.plan, p.days, p.amount, p.currency, p.status, p.yk_id, p.method, p.fail_reason, p.created_at, p.paid_at, p.recurring,
     c.slug, c.utm_source, c.utm_campaign
   FROM payments p LEFT JOIN users u ON u.id = p.user_id
   LEFT JOIN mkt_clicks c ON c.id = COALESCE(p.mkt_click_id, u.mkt_click_id)
@@ -168,7 +174,7 @@ const loadPayments = () => db.all<PaymentRaw>(`
 const toPayment = (p: PaymentRaw) => ({
   id: p.id, ykId: p.yk_id, userId: p.user_id, email: p.email, plan: p.plan, planTitle: PLAN_TITLE[p.plan] ?? p.plan,
   amount: money(p.amount), currency: p.currency, status: p.status, date: p.paid_at ?? p.created_at, createdAt: p.created_at, paidAt: p.paid_at,
-  provider: p.yk_id ? 'ЮKassa' : '—', method: p.method, failReason: p.fail_reason,
+  provider: p.yk_id ? 'ЮKassa' : '—', method: p.method, failReason: p.fail_reason, recurring: !!p.recurring,
   source: p.slug ? { slug: p.slug, utm_source: p.utm_source, utm_campaign: p.utm_campaign } : null,
 });
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -215,6 +221,7 @@ export async function dashboard() {
       count: ok.length, sum: money(ok.reduce((a, p) => a + p.amount, 0)), currency: 'RUB',
       today: okFrom(today), d7: okFrom(d7), d30: okFrom(d30),
       activeSubs: users.filter((u) => u.sub === 'active').length,
+      autopay: users.filter((u) => u.autopay).length,
       canceledSubs: pays.filter((p) => p.status === 'refunded').length,
       failed: pays.filter((p) => p.status === 'canceled').length,
       pending: pays.filter((p) => p.status === 'pending' || p.status === 'new').length,

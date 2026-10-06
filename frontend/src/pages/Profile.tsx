@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
-import { useBilling } from '../hooks/useBilling';
+import { useBillingState } from '../hooks/useBilling';
+import { AutopayCard } from '../components/AutopayCard';
 import { formatDate, isForever } from '../lib';
 import { PlanCards } from '../components/PlanCards';
 import { track } from '../services/analytics';
@@ -17,7 +18,7 @@ export default function Profile() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const billing = useBilling();
+  const [billing, reloadBilling] = useBillingState();
   const plansRef = useRef<HTMLDivElement>(null);
   const { hash } = useLocation();
   // переход по ссылке на тарифы (#plans) — прокручиваем к тарифам, когда они загрузились
@@ -54,6 +55,7 @@ export default function Profile() {
                 : 'Pro включён.'}
             </p>
             <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Все песни и ноты, скачивание PDF</li><li>Подробная статистика в разделе «Прогресс»</li></ul>
+            {billing?.autopay && <AutopayCard info={billing.autopay} proUntil={user.proUntil ?? null} onChange={reloadBilling} />}
             {billing?.enabled && !!upgrades.length && <>
               <h4 className="upgrade-title">Перейти на больший тариф</h4>
               <p className="muted small" style={{ margin: '0 0 10px' }}>Новый срок начнётся с момента окончания текущей подписки — оплаченные дни не пропадут.</p>
