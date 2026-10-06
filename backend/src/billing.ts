@@ -409,7 +409,7 @@ export async function setDemoCard(userId: number, on: boolean): Promise<{ status
   const u = await db.get<{ method: string | null }>('SELECT autopay_method AS method FROM users WHERE id = ?', userId);
   if (!u) return { status: 404, error: 'Пользователь не найден' };
   if (u.method && u.method !== DEMO_METHOD) return { status: 409, error: 'У пользователя уже привязана настоящая карта' };
-  if (on) await db.run("UPDATE users SET autopay_plan = 'pro-month', autopay_method = ?, autopay_card = 'Visa •• 4242', autopay_since = ?, autopay_fails = 0 WHERE id = ?", DEMO_METHOD, new Date().toISOString(), userId);
+  if (on) await db.run("UPDATE users SET autopay_plan = 'pro-month', autopay_method = ?, autopay_card = 'Мир •• 4242', autopay_since = ?, autopay_fails = 0 WHERE id = ?", DEMO_METHOD, new Date().toISOString(), userId);
   else await db.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ? AND autopay_method = ?`, userId, DEMO_METHOD);
   return { status: 200 };
 }

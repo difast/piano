@@ -245,7 +245,7 @@ function UsersTab() {
     try { await api.adminBlock(u.id, block); reload(); } catch (e) { window.alert((e as ApiError).message); }
   };
   const demoCard = async (u: AdminUser, on: boolean) => {
-    if (on && !window.confirm(`Показать в профиле ${u.email} тестовую карту «Visa •• 4242»? Это только для скриншотов отвязки карты (для ЮKassa): списаний по ней не будет.`)) return;
+    if (on && !window.confirm(`Показать в профиле ${u.email} тестовую карту «Мир •• 4242»? Это только для скриншотов отвязки карты (для ЮKassa): списаний по ней не будет.`)) return;
     try { await api.adminDemoCard(u.id, on); reload(); } catch (e) { window.alert((e as ApiError).message); }
   };
   const sel = (v: string, set: (s: string) => void, opts: [string, string][], label: string) => (
