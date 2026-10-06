@@ -259,6 +259,7 @@ await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_card TEXT');   
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_since TEXT');      // когда включено
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_fails INTEGER NOT NULL DEFAULT 0');   // неудачных списаний подряд
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_notice TEXT');     // pro_until, о списании перед которым уже предупредили
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_last_try TEXT');   // время последней попытки автосписания
 /** платёж списан автоматически (автопродление), а не оплачен покупателем на странице ЮKassa */
 await db.run('ALTER TABLE payments ADD COLUMN IF NOT EXISTS recurring BOOLEAN NOT NULL DEFAULT FALSE');
 await db.run('DELETE FROM sessions WHERE expires_at < ?', Date.now());   // чистим просроченные сессии при старте

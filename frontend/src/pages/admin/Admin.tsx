@@ -9,7 +9,7 @@ interface Source { slug: string; utm_source: string | null; utm_medium?: string 
 interface AdminUser {
   id: number; email: string; createdAt: string; emailVerified: boolean; account: 'active' | 'blocked'; plan: 'free' | 'pro'; planTitle: string; sub: Sub;
   subStart: string | null; subEnd: string | null; lastAmount: number | null; lastPaidAt: string | null; paidTotal: number; paidCount: number; lastActive: string | null; source: Source | null;
-  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number } | null;
+  autopay: { plan: string; planTitle: string; card: string | null; since: string | null; fails: number; demo?: boolean } | null;
 }
 interface Payment {
   id: string; ykId: string | null; userId: number | null; email: string | null; plan: string; planTitle: string; amount: number; currency: string; status: string;
@@ -244,6 +244,10 @@ function UsersTab() {
     if (!window.confirm(block ? `Заблокировать ${u.email}? Пользователь выйдет со всех устройств и не сможет войти.` : `Разблокировать ${u.email}?`)) return;
     try { await api.adminBlock(u.id, block); reload(); } catch (e) { window.alert((e as ApiError).message); }
   };
+  const demoCard = async (u: AdminUser, on: boolean) => {
+    if (on && !window.confirm(`Показать в профиле ${u.email} тестовую карту «Visa •• 4242»? Это только для скриншотов отвязки карты (для ЮKassa): списаний по ней не будет.`)) return;
+    try { await api.adminDemoCard(u.id, on); reload(); } catch (e) { window.alert((e as ApiError).message); }
+  };
   const sel = (v: string, set: (s: string) => void, opts: [string, string][], label: string) => (
     <label className="cab-field"><span>{label}</span>
       <select value={v} onChange={(e) => { set(e.target.value); setPage(1); }}>{opts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -282,7 +286,11 @@ function UsersTab() {
                   <td className="r nw">{u.lastAmount != null ? fmtMoney(u.lastAmount) : '—'}</td>
                   <td className="nw">{fmtDate(u.lastPaidAt)}</td>
                   <td className="r nw">{u.paidTotal ? fmtMoney(u.paidTotal) : '—'}{u.paidCount > 1 && <span className="cab-muted small"> ({u.paidCount})</span>}</td>
-                  <td className="nw">{u.autopay ? <><Pill tone={u.autopay.fails ? 'warn' : 'ok'}>вкл</Pill> <span className="cab-muted small">{u.autopay.planTitle.replace('Pro · ', '')}{u.autopay.card && ` · ${u.autopay.card}`}{u.autopay.fails > 0 && ` · неудач: ${u.autopay.fails}`}</span></> : <span className="cab-muted">—</span>}</td>
+                  <td className="nw">
+                    {u.autopay?.demo ? <><Pill tone="muted">тест. карта</Pill> <button className="cab-btn small" onClick={() => demoCard(u, false)}>Убрать</button></>
+                      : u.autopay ? <><Pill tone={u.autopay.fails ? 'warn' : 'ok'}>вкл</Pill> <span className="cab-muted small">{u.autopay.planTitle.replace('Pro · ', '')}{u.autopay.card && ` · ${u.autopay.card}`}{u.autopay.fails > 0 && ` · неудач: ${u.autopay.fails}`}</span></>
+                      : <><span className="cab-muted">—</span> <button className="cab-btn small" title="Показать в профиле тестовую карту для скриншотов отвязки (без списаний)" onClick={() => demoCard(u, true)}>Тест. карта</button></>}
+                  </td>
                   <td className="nw">{fmtDate(u.lastActive)}</td>
                   <td>{sourceText(u.source)}</td>
                   <td><button className="cab-btn small" onClick={() => toggleBlock(u)}>{u.account === 'active' ? 'Заблокировать' : 'Разблокировать'}</button></td>

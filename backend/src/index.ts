@@ -12,7 +12,7 @@ import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
 import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
-import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
+import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, setDemoCard, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
 const DEV_TOOLS = !PROD || process.env.ALLOW_DEV_PRO === '1';
@@ -407,6 +407,14 @@ admin.get('/dashboard', async (_req, res) => { res.json(await dashboard()); });
 admin.get('/users', async (req, res) => { res.json(await usersList(req.query)); });
 admin.post('/users/:id/block', async (req, res) => {
   const r = await setBlocked(Number(res.locals.adminId), Number(req.params.id), req.body?.blocked === true);
+  if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
+  res.json({ ok: true });
+});
+// тестовая карта в профиле пользователя — для скриншотов процедуры отвязки (ЮKassa); списаний по ней нет
+admin.post('/users/:id/demo-card', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: 'Некорректный пользователь' }); return; }
+  const r = await setDemoCard(id, req.body?.on === true);
   if (r.status !== 200) { res.status(r.status).json({ error: r.error }); return; }
   res.json({ ok: true });
 });

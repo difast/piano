@@ -18,6 +18,7 @@ export default function Profile() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [unlinked, setUnlinked] = useState(false);
   const [billing, reloadBilling] = useBillingState();
   const plansRef = useRef<HTMLDivElement>(null);
   const { hash } = useLocation();
@@ -46,6 +47,8 @@ export default function Profile() {
         <button className="btn small" onClick={async () => { await logout(); nav('/'); }}>Выйти</button>
       </div>
       <div className="card" id="plans" ref={plansRef}>
+        {billing?.autopay && <AutopayCard info={billing.autopay} proUntil={user.proUntil ?? null} onUnlinked={() => { setUnlinked(true); reloadBilling(); }} />}
+        {unlinked && !billing?.autopay && <Notice kind="success">Карта отвязана. Автопродление отключено, списаний больше не будет{activeUntil && !isForever(activeUntil) ? `. Pro действует до ${formatDate(activeUntil)}` : ''}.</Notice>}
         {isPro ? (
           <>
             <h3>👑 Pro активен</h3>
@@ -55,7 +58,6 @@ export default function Profile() {
                 : 'Pro включён.'}
             </p>
             <ul className="plan-list" style={{ margin: '0 0 8px' }}><li>Занятия без ограничения по времени</li><li>Все песни и ноты, скачивание PDF</li><li>Подробная статистика в разделе «Прогресс»</li></ul>
-            {billing?.autopay && <AutopayCard info={billing.autopay} proUntil={user.proUntil ?? null} onChange={reloadBilling} />}
             {billing?.enabled && !!upgrades.length && <>
               <h4 className="upgrade-title">Перейти на больший тариф</h4>
               <p className="muted small" style={{ margin: '0 0 10px' }}>Новый срок начнётся с момента окончания текущей подписки — оплаченные дни не пропадут.</p>
@@ -72,7 +74,7 @@ export default function Profile() {
             {billing?.enabled && (
               <>
                 <PlanCards plans={billing.plans} busy={busy} onBuy={buy} />
-                <p className="muted small" style={{ marginTop: 10 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Автоматических списаний нет. Чек придёт на {user.email}.</p>
+                <p className="muted small" style={{ marginTop: 10 }}>Оплата банковской картой и другими способами на защищённой странице ЮKassa. Чек придёт на {user.email}. Автопродление (для месяца и года) включится, только если при оплате картой отметить «Запомнить данные карты»; отвязать карту можно здесь, в профиле.</p>
               </>
             )}
             {msg && <Notice kind="error">{msg}</Notice>}

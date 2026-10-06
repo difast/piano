@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { AUTOPAY_CHARGE_BEFORE, AUTOPAY_REMIND_BEFORE, autopayChargeAt, billingInfo } from './billing.ts';
+import { AUTOPAY_CHARGE_BEFORE, AUTOPAY_REMIND_BEFORE, autopayChargeAt, autopayChargeTick, billingInfo, DEMO_METHOD } from './billing.ts';
 import { db } from './db.ts';
 import { APP_TZ, FRONTEND } from './config.ts';
 import { SONGS_META } from './content.ts';
@@ -137,8 +137,8 @@ async function autopayReminders(t: number) {
   // списание — за сутки до окончания срока, значит напоминаем, когда до окончания осталось ≤ 4 дней
   const rows = await db.all<{ id: number; email: string; pro_until: string; plan: string; card: string | null }>(
     `SELECT id, email, pro_until, autopay_plan AS plan, autopay_card AS card FROM users
-     WHERE blocked_at IS NULL AND autopay_plan IS NOT NULL AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
-       AND COALESCE(autopay_notice, '') <> pro_until`, iso(t + AUTOPAY_CHARGE_BEFORE), iso(t + AUTOPAY_CHARGE_BEFORE + AUTOPAY_REMIND_BEFORE));
+     WHERE blocked_at IS NULL AND autopay_plan IS NOT NULL AND autopay_method <> ? AND pro_until > ? AND pro_until <= ? AND pro_until < '2900'
+       AND COALESCE(autopay_notice, '') <> pro_until`, DEMO_METHOD, iso(t + AUTOPAY_CHARGE_BEFORE), iso(t + AUTOPAY_CHARGE_BEFORE + AUTOPAY_REMIND_BEFORE));
   let sent = 0;
   for (const u of rows) {
     const plan = billingInfo().plans.find((p) => p.id === u.plan);
@@ -156,7 +156,9 @@ export function startScheduler() {
   let n = 0;
   const run = () => {
     notifyTick().catch((e) => console.error('[notify]', (e as Error).message));
-    if (n++ % 10 === 0) proExpiryTick().catch((e) => console.error('[notify] Pro:', (e as Error).message));   // раз в 10 минут
+    if (n % 10 === 0) proExpiryTick().catch((e) => console.error('[notify] Pro:', (e as Error).message));   // раз в 10 минут
+    if (n % 10 === 5) autopayChargeTick().catch((e) => console.error('[autopay]', (e as Error).message));    // автосписания — тоже раз в 10 минут
+    n++;
   };
   setTimeout(run, 5_000);
   return setInterval(run, 60_000);
