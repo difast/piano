@@ -20,7 +20,10 @@ interface Dashboard {
   users: { total: number; today: number; d7: number; d30: number; activeToday: number; active7: number; active30: number; free: number; pro: number; blocked: number };
   payments: { count: number; sum: number; today: { count: number; sum: number }; d7: { count: number; sum: number }; d30: { count: number; sum: number }; activeSubs: number; canceledSubs: number; failed: number; pending: number; autopay?: number };
   recentPayments: Payment[];
+  errors?: { d1: number; d7: number };
 }
+interface UiError { id: number; kind: 'site' | 'admin'; date: string; message: string; path: string | null; stack: string | null; device: string | null; os: string | null; browser: string | null; email: string | null }
+interface Errors { total: number; page: number; pageSize: number; errors: UiError[]; keepDays: number; top: { kind: 'site' | 'admin'; message: string; count: number; last: string; paths: string[]; users: number }[] }
 interface Charts { period: string; step: number; days: string[]; registrations: number[]; clicks: number[]; payments: number[]; revenue: number[]; funnel: Metrics }
 type Utm = Record<'utm_source' | 'utm_medium' | 'utm_campaign' | 'utm_content' | 'utm_term', string | null>;
 interface Marketing {
@@ -207,6 +210,15 @@ function DashboardTab() {
           <Kpi label="Неуспешные платежи" value={fmtNum(p.failed)} sub={p.pending ? `ожидают оплаты: ${p.pending}` : undefined} />
         </div>
       </section>
+      {data.errors && (
+        <section className="cab-card">
+          <h2>Сбои у пользователей</h2>
+          <div className="cab-kpis">
+            <Kpi label="За сутки" value={<a href="#errors">{fmtNum(data.errors.d1)}</a>} />
+            <Kpi label="За 7 дней" value={<a href="#errors">{fmtNum(data.errors.d7)}</a>} />
+          </div>
+        </section>
+      )}
       <ChartsBlock />
       <section className="cab-card">
         <div className="cab-head"><h2>Последние платежи</h2><a href="#payments" className="cab-link">Все платежи →</a></div>
@@ -339,6 +351,87 @@ function PaymentsTab() {
         </>
       )}
     </section>
+  );
+}
+
+const KIND: Record<UiError['kind'], string> = { site: 'сайт', admin: 'админка' };
+function ErrorsTab() {
+  const [period, setPeriod] = useState('7');
+  const [kind, setKind] = useState('');
+  const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState<number | null>(null);
+  const { data, error, reload } = useAdmin<Errors>('/errors', { period, kind, q: query, page });
+  useEffect(() => { const t = window.setTimeout(() => { setQuery(q.trim()); setPage(1); }, 300); return () => window.clearTimeout(t); }, [q]);
+  return (
+    <>
+      <section className="cab-card">
+        <div className="cab-head"><h2>Ошибки{data && <span className="cab-muted"> · {fmtNum(data.total)}</span>}</h2>
+          <PeriodSwitch value={period} onChange={(v) => { setPeriod(v); setPage(1); }} />
+        </div>
+        <p className="cab-muted small">Сбои страниц у посетителей: пользователь видел «Что-то пошло не так» или страница не отрисовалась. Записи хранятся {data?.keepDays ?? 90} дней. Время — московское.</p>
+        <div className="cab-filters">
+          <label className="cab-field grow"><span>Поиск</span><input type="search" placeholder="текст ошибки, страница или email" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+          <label className="cab-field"><span>Где</span>
+            <select value={kind} onChange={(e) => { setKind(e.target.value); setPage(1); }}>
+              <option value="">Везде</option><option value="site">сайт</option><option value="admin">админка</option>
+            </select></label>
+          <button className="cab-btn" onClick={reload}>Обновить</button>
+        </div>
+        {error && <p className="cab-err">{error}</p>}
+        {data && !data.total && <p className="cab-empty">Ошибок за период нет.</p>}
+        {data && data.top.length > 0 && (
+          <>
+            <h3>Чаще всего</h3>
+            <div className="cab-table-wrap">
+              <table className="cab-table" data-testid="errors-top">
+                <thead><tr><th className="r">Раз</th><th>Ошибка</th><th>Где</th><th>Страницы</th><th className="r">Пользователей</th><th>Последний раз</th></tr></thead>
+                <tbody>
+                  {data.top.map((g) => (
+                    <tr key={g.kind + g.message}>
+                      <td className="r"><b>{fmtNum(g.count)}</b></td>
+                      <td className="cab-errmsg">{g.message}</td>
+                      <td className="nw">{KIND[g.kind]}</td>
+                      <td>{g.paths.join(', ') || '—'}</td>
+                      <td className="r">{g.users || '—'}</td>
+                      <td className="nw">{fmtDateTime(g.last)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+      {data && data.errors.length > 0 && (
+        <section className="cab-card">
+          <h2>Все записи</h2>
+          <div className="cab-table-wrap">
+            <table className="cab-table" data-testid="errors-list">
+              <thead><tr><th>Дата</th><th>Где</th><th>Ошибка</th><th>Страница</th><th>Устройство</th><th>Пользователь</th></tr></thead>
+              <tbody>
+                {data.errors.map((e) => (
+                  <tr key={e.id}>
+                    <td className="nw">{fmtDateTime(e.date)}</td>
+                    <td className="nw">{KIND[e.kind]}</td>
+                    <td className="cab-errmsg">
+                      {e.message}
+                      {e.stack && <> <button className="cab-link" onClick={() => setOpen(open === e.id ? null : e.id)} aria-expanded={open === e.id}>{open === e.id ? 'скрыть' : 'подробнее'}</button>
+                        {open === e.id && <pre className="cab-stack">{e.stack}</pre>}</>}
+                    </td>
+                    <td>{e.path ?? '—'}</td>
+                    <td className="nw">{e.browser ? `${e.browser} · ${e.os} · ${DEVICE[e.device ?? ''] ?? e.device}` : '—'}</td>
+                    <td>{e.email ?? <span className="cab-muted">{e.kind === 'admin' ? '—' : 'гость'}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={data.page} total={data.total} size={data.pageSize} onPage={setPage} />
+        </section>
+      )}
+    </>
   );
 }
 
@@ -492,7 +585,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-const TABS = [['dashboard', 'Dashboard'], ['users', 'Пользователи'], ['payments', 'Платежи'], ['marketing', 'Маркетинг']] as const;
+const TABS = [['dashboard', 'Dashboard'], ['users', 'Пользователи'], ['payments', 'Платежи'], ['marketing', 'Маркетинг'], ['errors', 'Ошибки']] as const;
 type Tab = (typeof TABS)[number][0];
 const tabFromHash = (): Tab => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'dashboard');
 
@@ -531,6 +624,7 @@ export default function Admin() {
       {tab === 'users' && <UsersTab />}
       {tab === 'payments' && <PaymentsTab />}
       {tab === 'marketing' && <MarketingTab />}
+      {tab === 'errors' && <ErrorsTab />}
     </>
   );
   return (

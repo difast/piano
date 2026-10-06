@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { db } from './db.ts';
 import { sessionToken } from './auth.ts';
 import { todayKey } from './progress.ts';
-import { MARKETING_LINKS, UTM_KEYS } from './marketing.ts';
+import { MARKETING_LINKS, UTM_KEYS, parseUa } from './marketing.ts';
 import { isForever } from './billing.ts';
 
 /**
@@ -200,6 +200,49 @@ export async function paymentsList(q: Record<string, unknown>) {
   };
 }
 
+// ---------- ошибки интерфейса ----------
+/** Сбои страниц сайта и админки (события ui_error / admin_error). Тексты пришли из браузера — показывать только как текст. */
+export const ERRORS_KEEP_DAYS = 90;
+interface ErrorRaw { id: number; name: string; props: string | null; created_at: string; user_id: number | null; email: string | null }
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+export async function errorsList(q: Record<string, unknown>) {
+  const kind = pick(q.kind, ['site', 'admin'] as const);
+  const from = periodStart(pick(q.period, PERIODS) ?? '7');
+  const search = typeof q.q === 'string' ? q.q.trim().toLowerCase().slice(0, 100) : '';
+  const rows = await db.all<ErrorRaw>(
+    `SELECT e.id, e.name, e.props, e.created_at, e.user_id, u.email FROM events e LEFT JOIN users u ON u.id = e.user_id
+     WHERE e.name IN ('ui_error', 'admin_error') ORDER BY e.id DESC LIMIT 5000`);
+  const list = rows.map((r) => {
+    let p: Record<string, unknown> = {};
+    try { p = JSON.parse(r.props ?? '{}') ?? {}; } catch { /* обрезанный JSON — покажем как есть */ p = { message: r.props ?? '' }; }
+    const ua = str(p.ua, 200), { device, os, browser } = parseUa(ua);
+    return {
+      id: r.id, kind: r.name === 'admin_error' ? 'admin' as const : 'site' as const, date: r.created_at,
+      message: str(p.message, 300) || '(без текста)', path: str(p.path, 200) || null, stack: str(p.stack, 500) || null,
+      device: ua ? device : null, os: ua ? os : null, browser: ua ? browser : null, email: r.email,
+    };
+  }).filter((e) => (!kind || e.kind === kind) && (!from || dayOf(e.date)! >= from)
+    && (!search || e.message.toLowerCase().includes(search) || (e.path ?? '').toLowerCase().includes(search) || (e.email ?? '').includes(search)));
+  // одинаковые ошибки — одной строкой в сводке
+  const groups = new Map<string, { kind: 'site' | 'admin'; message: string; count: number; last: string; paths: Set<string>; users: Set<string> }>();
+  for (const e of list) {
+    const k = e.kind + '|' + e.message;
+    const g = groups.get(k) ?? { kind: e.kind, message: e.message, count: 0, last: e.date, paths: new Set(), users: new Set() };
+    g.count++; if (e.date > g.last) g.last = e.date;
+    if (e.path) g.paths.add(e.path);
+    if (e.email) g.users.add(e.email);
+    groups.set(k, g);
+  }
+  const top = [...groups.values()].sort((a, b) => b.count - a.count || b.last.localeCompare(a.last)).slice(0, 20)
+    .map((g) => ({ kind: g.kind, message: g.message, count: g.count, last: g.last, paths: [...g.paths].slice(0, 5), users: g.users.size }));
+  const page = pageOf(q.page);
+  return { total: list.length, page, pageSize: PAGE, errors: list.slice((page - 1) * PAGE, page * PAGE), top, keepDays: ERRORS_KEEP_DAYS };
+}
+export async function errorsCleanup() {
+  const before = new Date(Date.now() - ERRORS_KEEP_DAYS * 86_400_000).toISOString();
+  await db.run(`DELETE FROM events WHERE name IN ('ui_error', 'admin_error') AND created_at < ?`, before);
+}
+
 // ---------- дашборд ----------
 export async function dashboard() {
   const today = todayKey();
@@ -227,6 +270,10 @@ export async function dashboard() {
       pending: pays.filter((p) => p.status === 'pending' || p.status === 'new').length,
     },
     recentPayments: pays.slice(0, 10),
+    errors: {
+      d1: Number((await db.get<{ n: string }>(`SELECT COUNT(*) AS n FROM events WHERE name IN ('ui_error', 'admin_error') AND created_at >= ?`, new Date(Date.now() - 86_400_000).toISOString()))?.n ?? 0),
+      d7: Number((await db.get<{ n: string }>(`SELECT COUNT(*) AS n FROM events WHERE name IN ('ui_error', 'admin_error') AND created_at >= ?`, new Date(Date.now() - 7 * 86_400_000).toISOString()))?.n ?? 0),
+    },
   };
 }
 

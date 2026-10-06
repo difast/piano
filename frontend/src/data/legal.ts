@@ -16,7 +16,7 @@ export const OPERATOR = {
 
 /** Дата и версия редакции документов (меняйте при каждом изменении текстов). */
 export const LEGAL_DATE = '6 октября 2026 г.';
-export const LEGAL_VERSION = '2026-10-06.2';
+export const LEGAL_VERSION = '2026-10-06.3';
 
 export const LEGAL_LINKS = [
   { to: '/terms', label: 'Пользовательское соглашение' },

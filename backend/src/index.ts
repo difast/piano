@@ -11,7 +11,7 @@ import { achievementsFor, attachReferral, markSeen, recordVisit, referralCode } 
 import { FRONTEND } from './config.ts';
 import { initPush, pushPublicKey, removePushSubscription, savePushSubscription, sendPush, songOfDay, startScheduler } from './notify.ts';
 import { attachMarketing, MarketingError, recordClick } from './marketing.ts';
-import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
+import { adminStatus, charts, checkAdminPassword, createAdminSession, dashboard, destroyAdminSession, errorsList, marketing, noStore, paymentsList, requireAdmin, setBlocked, usersList } from './admin.ts';
 import { BillingError, autopayInfo, availablePlanIds, billingInfo, cancelAutopay, createCheckout, currentPlan, isYooKassaIp, orderStatus, processNotification, resumeAfterPayment } from './billing.ts';
 
 const PROD = process.env.NODE_ENV === 'production';
@@ -413,6 +413,7 @@ admin.post('/users/:id/block', async (req, res) => {
 admin.get('/payments', async (req, res) => { res.json(await paymentsList(req.query)); });
 admin.get('/marketing', async (req, res) => { res.json(await marketing(req.query, FRONTEND)); });
 admin.get('/charts', async (req, res) => { res.json(await charts(req.query)); });
+admin.get('/errors', async (req, res) => { res.json(await errorsList(req.query)); });
 api.use('/admin', admin);
 
 api.post('/events', async (req, res) => {

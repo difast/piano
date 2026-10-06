@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { AUTOPAY_CHARGE_BEFORE, AUTOPAY_REMIND_BEFORE, autopayChargeAt, autopayChargeTick, billingInfo } from './billing.ts';
 import { db } from './db.ts';
+import { errorsCleanup } from './admin.ts';
 import { APP_TZ, FRONTEND } from './config.ts';
 import { SONGS_META } from './content.ts';
 import { todayKey } from './progress.ts';
@@ -161,6 +162,7 @@ export function startScheduler() {
   const run = () => {
     notifyTick().catch((e) => console.error('[notify]', (e as Error).message));
     if (n % 10 === 0) proExpiryTick().catch((e) => console.error('[notify] Pro:', (e as Error).message));   // раз в 10 минут
+    if (n % 60 === 2) errorsCleanup().catch((e) => console.error('[errors]', (e as Error).message));   // старые записи о сбоях — раз в час
     if (n % 10 === 5) autopayChargeTick().catch((e) => console.error('[autopay]', (e as Error).message));    // автосписания — тоже раз в 10 минут
     n++;
   };
