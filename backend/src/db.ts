@@ -259,6 +259,7 @@ await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_card TEXT');   
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_since TEXT');      // когда включено
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_fails INTEGER NOT NULL DEFAULT 0');   // неудачных списаний подряд
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_notice TEXT');     // pro_until, о списании перед которым уже предупредили
+await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_amount TEXT');     // сумма из этого напоминания — её и списываем
 await db.run('ALTER TABLE users ADD COLUMN IF NOT EXISTS autopay_last_try TEXT');   // время последней попытки автосписания
 // тестовые карты для скриншотов (временная функция, удалена) — убираем, если остались
 await db.run(`UPDATE users SET autopay_plan = NULL, autopay_method = NULL, autopay_card = NULL, autopay_since = NULL, autopay_fails = 0, autopay_notice = NULL, autopay_last_try = NULL WHERE autopay_method = 'demo'`);

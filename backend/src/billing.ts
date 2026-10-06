@@ -68,15 +68,16 @@ const planTitle = (id: string) => DEFS.find((d) => d.id === id)?.title ?? 'Pro';
 
 /** Автопродление пользователя (null — выключено). */
 export async function autopayInfo(userId: number): Promise<AutopayInfo | null> {
-  const r = await db.get<{ plan: string | null; card: string | null; since: string | null; until: string | null }>(
-    'SELECT autopay_plan AS plan, autopay_card AS card, autopay_since AS since, pro_until AS until FROM users WHERE id = ?', userId);
+  const r = await db.get<{ plan: string | null; card: string | null; since: string | null; until: string | null; notice: string | null; noticed: string | null }>(
+    'SELECT autopay_plan AS plan, autopay_card AS card, autopay_since AS since, pro_until AS until, autopay_notice AS notice, autopay_amount AS noticed FROM users WHERE id = ?', userId);
   if (!r?.plan) return null;
-  const price = billingInfo().plans.find((p) => p.id === r.plan)?.price ?? null;
+  // после напоминания сумма ближайшего списания зафиксирована — даже если цену тарифа уже поменяли
+  const price = (r.notice && r.notice === r.until && r.noticed) || (billingInfo().plans.find((p) => p.id === r.plan)?.price ?? null);
   return { plan: r.plan, planTitle: planTitle(r.plan), amount: price, currency: 'RUB', card: r.card, since: r.since,
     chargeAt: r.until && !isForever(r.until) && Date.parse(r.until) > Date.now() ? autopayChargeAt(r.until) : null };
 }
 
-const AUTOPAY_OFF = 'autopay_plan = NULL, autopay_method = NULL, autopay_card = NULL, autopay_fails = 0, autopay_notice = NULL, autopay_last_try = NULL';
+const AUTOPAY_OFF = 'autopay_plan = NULL, autopay_method = NULL, autopay_card = NULL, autopay_fails = 0, autopay_notice = NULL, autopay_amount = NULL, autopay_last_try = NULL';
 
 /** Пользователь отключил автопродление. Pro действует до конца оплаченного срока. */
 export async function cancelAutopay(userId: number): Promise<boolean> {
@@ -241,7 +242,7 @@ async function applyPayment(o: OrderRow, p: YkPayment): Promise<'activated' | 'c
       if (forever) await t.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ?`, o.user_id);   // «навсегда» — продлевать нечего
       else if (!o.recurring && pm?.saved === true && pm.id) {
         // покупатель отметил на форме ЮKassa «Запомнить данные карты» — включаем автопродление этого тарифа
-        await t.run(`UPDATE users SET autopay_plan = ?, autopay_method = ?, autopay_card = ?, autopay_since = ?, autopay_fails = 0, autopay_notice = NULL, autopay_last_try = NULL WHERE id = ?`,
+        await t.run(`UPDATE users SET autopay_plan = ?, autopay_method = ?, autopay_card = ?, autopay_since = ?, autopay_fails = 0, autopay_notice = NULL, autopay_amount = NULL, autopay_last_try = NULL WHERE id = ?`,
           o.plan, pm.id.slice(0, 100), cardTitle(pm), new Date().toISOString(), o.user_id);
         await t.run('INSERT INTO events (user_id, name, props) VALUES (?, ?, ?)', o.user_id, 'autopay_enabled', JSON.stringify({ plan: o.plan }));
       } else if (o.recurring) await t.run('UPDATE users SET autopay_fails = 0, autopay_last_try = NULL WHERE id = ?', o.user_id);
@@ -367,8 +368,8 @@ export async function autopayChargeTick(now = Date.now()): Promise<number> {
     try { await applyPayment(o, await yk<YkPayment>('GET', `/payments/${encodeURIComponent(o.yk_id!)}`)); }
     catch (e) { console.error('[autopay] сверка не удалась:', (e as Error).message); }
   }
-  const due = await db.all<{ id: number; email: string; plan: string; method: string }>(
-    `SELECT u.id, u.email, u.autopay_plan AS plan, u.autopay_method AS method FROM users u
+  const due = await db.all<{ id: number; email: string; plan: string; method: string; amount: string | null }>(
+    `SELECT u.id, u.email, u.autopay_plan AS plan, u.autopay_method AS method, u.autopay_amount AS amount FROM users u
      WHERE u.autopay_plan IS NOT NULL AND u.autopay_method IS NOT NULL AND u.blocked_at IS NULL
        AND u.pro_until IS NOT NULL AND u.pro_until < '2900' AND u.pro_until <= ? AND u.pro_until > ?
        AND (u.autopay_last_try IS NULL OR u.autopay_last_try < ?)
@@ -381,16 +382,18 @@ export async function autopayChargeTick(now = Date.now()): Promise<number> {
     if (!plan || plan.days === 0) { await db.run(`UPDATE users SET ${AUTOPAY_OFF} WHERE id = ?`, u.id); continue; }   // тариф больше не продаётся
     // занимаем попытку (защита от двойного списания)
     if ((await db.run('UPDATE users SET autopay_last_try = ? WHERE id = ? AND (autopay_last_try IS NULL OR autopay_last_try < ?)', iso(now), u.id, iso(now - AUTOPAY_RETRY_GAP))) !== 1) continue;
+    // списываем ровно ту сумму, что была в напоминании: новая цена тарифа — только после уведомления о ней
+    const amount = u.amount || plan.price;
     const id = randomUUID();
     await db.run('INSERT INTO payments (id, user_id, plan, days, amount, recurring, mkt_click_id) VALUES (?, ?, ?, ?, ?, TRUE, (SELECT mkt_click_id FROM users WHERE id = ?))',
-      id, u.id, plan.id, plan.days, plan.price, u.id);
+      id, u.id, plan.id, plan.days, amount, u.id);
     const item = `Продление подписки ${plan.title}`.slice(0, 128);
     try {
       const p = await yk<YkPayment>('POST', '/payments', {
-        amount: { value: plan.price, currency: 'RUB' }, capture: true, payment_method_id: u.method,
+        amount: { value: amount, currency: 'RUB' }, capture: true, payment_method_id: u.method,
         description: `${item} (заказ ${id.slice(0, 8)})`.slice(0, 128),
         metadata: { order_id: id, user_id: String(u.id), recurring: '1' },
-        receipt: receipt(u.email, item, plan.price),
+        receipt: receipt(u.email, item, amount),
       }, id);
       await db.run("UPDATE payments SET yk_id = ?, status = 'pending' WHERE id = ?", p.id, id);
       started++;

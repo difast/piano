@@ -144,13 +144,13 @@ async function autopayReminders(t: number) {
   for (const u of rows) {
     const plan = billingInfo().plans.find((p) => p.id === u.plan);
     if (!plan) continue;   // тариф больше не продаётся — списания не будет, напоминать не о чем
-    if ((await db.run('UPDATE users SET autopay_notice = pro_until WHERE id = ? AND pro_until = ?', u.id, u.pro_until)) !== 1) continue;
+    if ((await db.run('UPDATE users SET autopay_notice = pro_until, autopay_amount = ? WHERE id = ? AND pro_until = ?', plan.price, u.id, u.pro_until)) !== 1) continue;
     try {
       await sendMail(u.email, 'Скоро продлим Pro', mails.autopayReminder({ planTitle: plan.title, amount: plan.price, chargeAt: autopayChargeAt(u.pro_until), until: u.pro_until, card: u.card }), SUPPORT_EMAIL || undefined);
       sent++;
     } catch (e) {
       // письмо не ушло — снимаем отметку: без доставленного уведомления списания не будет, попробуем позже
-      await db.run('UPDATE users SET autopay_notice = NULL WHERE id = ? AND autopay_notice = ?', u.id, u.pro_until);
+      await db.run('UPDATE users SET autopay_notice = NULL, autopay_amount = NULL WHERE id = ? AND autopay_notice = ?', u.id, u.pro_until);
       console.error('[mail] напоминание об автопродлении:', (e as Error).message);
     }
   }
