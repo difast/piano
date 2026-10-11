@@ -28,7 +28,7 @@ interface Charts { period: string; step: number; days: string[]; registrations: 
 type Utm = Record<'utm_source' | 'utm_medium' | 'utm_campaign' | 'utm_content' | 'utm_term', string | null>;
 interface Marketing {
   period: string;
-  links: (Metrics & { slug: string; title: string; url: string })[];
+  links: (Metrics & { slug: string; title: string; url: string; utm?: { utm_source: string; utm_medium: string } })[];
   totals: Metrics & { allTime: number; today: number; d7: number; d30: number };
   byUtm: (Metrics & { utm: Utm })[];
   breakdown: Record<'device' | 'os' | 'browser' | 'country' | 'lang' | 'referrer' | 'landing', { name: string; count: number }[]>;
@@ -446,17 +446,25 @@ function CopyButton({ text }: { text: string }) {
 }
 
 const UTM_FIELDS = [['utm_source', 'источник'], ['utm_medium', 'тип'], ['utm_campaign', 'кампания'], ['utm_content', 'объявление'], ['utm_term', 'ключ']] as const;
-function LinkBuilder({ base }: { base: string }) {
-  const [v, setV] = useState<Record<string, string>>({ utm_source: 'instagram', utm_medium: 'bio', utm_campaign: '' });
+const CAMPAIGN_HINT: Record<string, string> = { telegram: 'название канала', youtube: 'название ролика', rutube: 'название ролика', instagram: 'reels, сторис…' };
+function LinkBuilder({ links }: { links: Marketing['links'] }) {
+  const [slug, setSlug] = useState(links[0]?.slug ?? '');
+  const link = links.find((l) => l.slug === slug) ?? links[0];
+  const [v, setV] = useState<Record<string, string>>({ ...(link?.utm ?? {}), utm_campaign: '' });
+  const choose = (s: string) => { setSlug(s); setV({ ...(links.find((l) => l.slug === s)?.utm ?? {}), utm_campaign: '' }); };
   const qs = new URLSearchParams(Object.entries(v).filter(([, x]) => x.trim()).map(([k, x]) => [k, x.trim()])).toString();
-  const url = `${base}${qs ? `?${qs}` : ''}`;
+  const url = `${link?.url ?? ''}${qs ? `?${qs}` : ''}`;
   return (
-    <div className="cab-builder">
+    <div className="cab-builder" data-testid="link-builder">
       <h3>Ссылка с UTM-метками</h3>
-      <p className="cab-muted small">Для Reels, рекламы, блогеров — отдельная метка, и статистика разделится в таблице ниже.</p>
+      <p className="cab-muted small">Отдельная метка для каждого канала, ролика или поста — и статистика разделится в таблице «По UTM-меткам». Для Telegram в «кампании» укажите название канала.</p>
+      <div className="cab-filters">
+        <label className="cab-field"><span>Площадка</span>
+          <select value={slug} onChange={(e) => choose(e.target.value)}>{links.map((l) => <option key={l.slug} value={l.slug}>{l.title}</option>)}</select></label>
+      </div>
       <div className="cab-filters">
         {UTM_FIELDS.map(([k, l]) => (
-          <label className="cab-field" key={k}><span>{k} <i>({l})</i></span><input value={v[k] ?? ''} maxLength={100} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
+          <label className="cab-field" key={k}><span>{k} <i>({l})</i></span><input value={v[k] ?? ''} maxLength={100} placeholder={k === 'utm_campaign' ? CAMPAIGN_HINT[slug] : undefined} onChange={(e) => setV({ ...v, [k]: e.target.value })} /></label>
         ))}
       </div>
       <div className="cab-linkrow"><code>{url}</code><CopyButton text={url} /></div>
@@ -486,7 +494,7 @@ function MarketingTab() {
             </div>
           </div>
         ))}
-        <LinkBuilder base={data.links[0]?.url ?? ''} />
+        <LinkBuilder links={data.links} />
       </section>
       <section className="cab-card">
         <h2>Все переходы</h2>

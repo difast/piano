@@ -6,8 +6,11 @@ import { db } from './db.ts';
  * Маркетинговые ссылки: https://<сайт>/go/<slug>?utm_source=…  → переход записывается → пользователь попадает на главную.
  * Новую ссылку (например, для блогера) можно сделать той же ссылкой с другими UTM-метками или добавить сюда новый slug.
  */
-export const MARKETING_LINKS: { slug: string; title: string }[] = [
-  { slug: 'instagram', title: 'Instagram' },
+export const MARKETING_LINKS: { slug: string; title: string; utm: { utm_source: string; utm_medium: string } }[] = [
+  { slug: 'instagram', title: 'Instagram', utm: { utm_source: 'instagram', utm_medium: 'bio' } },
+  { slug: 'youtube', title: 'YouTube', utm: { utm_source: 'youtube', utm_medium: 'video' } },
+  { slug: 'rutube', title: 'Rutube', utm: { utm_source: 'rutube', utm_medium: 'video' } },
+  { slug: 'telegram', title: 'Telegram-каналы', utm: { utm_source: 'telegram', utm_medium: 'post' } },
 ];
 export const isMarketingSlug = (s: string) => MARKETING_LINKS.some((l) => l.slug === s);
 

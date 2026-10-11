@@ -117,8 +117,8 @@ cd backend && npm run check-deploy -- https://api.piano-lab.ru https://piano-lab
 
 Без входа `/api/admin/*` отвечает 404. Если не задан ни `ADMIN_PASSWORD`, ни `ADMIN_EMAILS`, админка выключена. Разделы: Dashboard (KPI, графики, воронка), Пользователи (поиск, фильтры, блокировка — заблокированный выходит со всех устройств и не может войти), Платежи (из таблицы `payments` ЮKassa: фильтры по периоду, статусу, тарифу, итог), Маркетинг.
 
-## Маркетинговые ссылки (Instagram и др.)
-`https://<сайт>/go/instagram` — переход записывается, и человек сразу попадает на главную. Поддерживаются `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` (например `/go/instagram?utm_source=instagram&utm_medium=reels&utm_campaign=launch`); в админке → «Маркетинг» статистика по ссылкам и по меткам, конструктор ссылки и кнопка «Копировать».
+## Маркетинговые ссылки (Instagram, YouTube, Rutube, Telegram)
+`https://<сайт>/go/instagram`, `/go/youtube`, `/go/rutube`, `/go/telegram` (для разных Telegram-каналов — `utm_campaign=<канал>`) — переход записывается, и человек сразу попадает на главную. Поддерживаются `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` (например `/go/instagram?utm_source=instagram&utm_medium=reels&utm_campaign=launch`); в админке → «Маркетинг» статистика по ссылкам и по меткам, конструктор ссылки и кнопка «Копировать».
 - Цепочка: переход → id визита в браузере на 30 дней → при регистрации связывается с аккаунтом (`users.mkt_click_id`) → при оплате сохраняется в платеже (`payments.mkt_click_id`). Конверсии считаются от уникальных посетителей.
 - Хранится: ссылка, UTM, домен источника, язык, тип устройства / ОС / браузер, страна (только если её передаёт CDN, например заголовок `CF-IPCountry`), время. IP и User-Agent не сохраняются — только хеш посетителя с солью. Боты и headless-браузеры не засчитываются.
 - Новая ссылка с отдельным адресом — добавить slug в `MARKETING_LINKS` (`backend/src/marketing.ts`).
