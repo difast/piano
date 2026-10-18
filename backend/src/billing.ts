@@ -359,7 +359,7 @@ async function applyCardCheck(o: OrderRow, p: YkPayment): Promise<'activated' | 
       const u = await t.get<{ plan: string | null; until: string | null }>('SELECT autopay_plan AS plan, pro_until AS until FROM users WHERE id = ? FOR UPDATE', o.user_id);
       const active = !!u?.until && Date.parse(u.until) > Date.now() && !isForever(u.until);
       if (!active) return false;   // подписка закончилась, пока привязывали карту, — карту не сохраняем
-      await saveCard(t, o.user_id, pm!, false);
+      await saveCard(t, o.user_id, pm!, true);   // новая карта сразу становится основной
       title = cardTitle(pm!);
       // автопродление не было включено — включаем для текущего тарифа (он записан в заказе)
       if (!u!.plan) await t.run('UPDATE users SET autopay_plan = ?, autopay_since = ?, autopay_fails = 0, autopay_notice = NULL, autopay_amount = NULL, autopay_last_try = NULL WHERE id = ?', o.plan, new Date().toISOString(), o.user_id);
