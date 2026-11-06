@@ -25,7 +25,7 @@ export async function initPush() {
   }
   const mail = (process.env.SUPPORT_EMAIL || process.env.SMTP_USER || '').trim();
   // subject обязан быть https: или mailto: — иначе берём запасной вариант
-  const subject = (process.env.VAPID_SUBJECT || (mail ? `mailto:${mail}` : /^https:/.test(FRONTEND) ? FRONTEND : 'mailto:noreply@piano-lab.ru')).trim();
+  const subject = (process.env.VAPID_SUBJECT || (mail ? `mailto:${mail}` : /^https:/.test(FRONTEND) ? FRONTEND : 'mailto:support@piano-lab.ru')).trim();
   try { webpush.setVapidDetails(subject, keys!.publicKey, keys!.privateKey); VAPID = keys; }
   catch (e) { console.error('[push] уведомления в браузере выключены:', (e as Error).message); }   // сервер работает и без них
 }

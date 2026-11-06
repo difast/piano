@@ -9,14 +9,14 @@ export const OPERATOR = {
   kpp: '773401001',
   address: '123592, город Москва, ул. Маршала Катукова, д. 22 к. 1',
   /** контактная почта для обращений пользователей */
-  email: 'noreply@piano-lab.ru',
+  email: 'support@piano-lab.ru',
   /** часы связи */
   hours: 'ежедневно с 10:00 до 20:00 по московскому времени',
 } as const;
 
 /** Дата и версия редакции документов (меняйте при каждом изменении текстов). */
-export const LEGAL_DATE = '18 октября 2026 г.';
-export const LEGAL_VERSION = '2026-10-18.1';
+export const LEGAL_DATE = '6 ноября 2026 г.';
+export const LEGAL_VERSION = '2026-11-06.1';
 
 export const LEGAL_LINKS = [
   { to: '/terms', label: 'Пользовательское соглашение' },
