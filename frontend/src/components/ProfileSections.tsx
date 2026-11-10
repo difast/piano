@@ -9,6 +9,7 @@ import { formatDate, isForever } from '../lib';
 import { Modal } from './Modal';
 import { Notice } from './Status';
 import { OPERATOR } from '../data/legal';
+import { PasswordInput } from './PasswordInput';
 
 export function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: React.ReactNode; disabled?: boolean }) {
   return (
@@ -105,8 +106,8 @@ export function SecurityCard() {
       </div>
       {!open ? <button className="btn small" onClick={() => setOpen(true)} style={{ marginTop: 10 }}>Сменить пароль</button> : (
         <form className="form inline-form" onSubmit={change}>
-          <label>Текущий пароль<input type="password" required autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} /></label>
-          <label>Новый пароль<input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /><span className="muted small">Не короче 8 символов</span></label>
+          <label>Текущий пароль<PasswordInput required autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} /></label>
+          <label>Новый пароль<PasswordInput required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /><span className="muted small">Не короче 8 символов</span></label>
           <div className="actions" style={{ margin: 0 }}>
             <button className="btn primary" disabled={busy}>{busy ? 'Сохраняем…' : 'Сохранить'}</button>
             <button type="button" className="btn" onClick={() => { setOpen(false); setError(''); }}>Отмена</button>
@@ -220,7 +221,7 @@ export function DeleteAccountCard() {
           <form className="form" onSubmit={submit}>
             <p style={{ margin: 0 }}>Будут удалены прогресс, история занятий, выученные песни и настройки. Восстановить их будет нельзя.</p>
             {paid && <Notice kind="error">У вас действует Pro {isForever(user.proUntil) ? 'навсегда' : `до ${formatDate(user.proUntil!)}`}. После удаления доступ пропадёт, оплата автоматически не возвращается.</Notice>}
-            <label>Пароль для подтверждения<input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+            <label>Пароль для подтверждения<PasswordInput required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
             <label className="check"><input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} /><span>Понимаю, что это действие необратимо</span></label>
             {error && <Notice kind="error">{error}</Notice>}
             <button className="btn danger" disabled={busy || !sure || !password}>{busy ? 'Удаляем…' : 'Удалить навсегда'}</button>

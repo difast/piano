@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { api, ApiError, getAdminToken, setAdminToken } from '../../services/api';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import './admin.css';
+import { PasswordInput } from '../../components/PasswordInput';
 
 // ---------- типы ответов сервера ----------
 type Sub = 'active' | 'pending' | 'canceled' | 'expired' | 'error' | 'none';
@@ -586,7 +587,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
   return (
     <form className="cab-card cab-login" onSubmit={submit}>
       <h1>Вход в админ-кабинет</h1>
-      <label className="cab-field"><span>Пароль</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
+      <label className="cab-field"><span>Пароль</span><PasswordInput autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus /></label>
       {error && <p className="cab-err">{error}</p>}
       <button className="cab-btn primary" disabled={busy || !password}>{busy ? 'Проверяем…' : 'Войти'}</button>
     </form>

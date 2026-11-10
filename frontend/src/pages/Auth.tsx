@@ -5,6 +5,7 @@ import { usePageMeta } from '../hooks/usePageMeta';
 import { Notice, Spinner } from '../components/Status';
 import { LegalLink } from '../components/LegalLink';
 import { PREVIEW } from '../env';
+import { PasswordInput } from '../components/PasswordInput';
 
 export default function Auth({ mode }: { mode: 'login' | 'register' }) {
   const isReg = mode === 'register';
@@ -41,7 +42,7 @@ export default function Auth({ mode }: { mode: 'login' | 'register' }) {
       {state?.notice && <Notice>{state.notice}</Notice>}
       {isReg && <label>Имя (необязательно)<input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} /></label>}
       <label>Email<input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-      <label>Пароль<input required type="password" minLength={isReg ? 8 : undefined} autoComplete={isReg ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+      <label>Пароль<PasswordInput required minLength={isReg ? 8 : undefined} autoComplete={isReg ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
         {isReg && <span className="muted small">Не короче 8 символов</span>}</label>
       {!isReg && <p className="small" style={{ margin: '-6px 0 0', textAlign: 'right' }}><Link to="/forgot-password">Забыли пароль?</Link></p>}
       {isReg && (

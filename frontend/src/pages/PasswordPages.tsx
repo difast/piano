@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { Notice, Spinner } from '../components/Status';
+import { PasswordInput } from '../components/PasswordInput';
 
 /** «Забыли пароль?» — письмо со ссылкой для сброса. */
 export function ForgotPassword() {
@@ -57,8 +58,8 @@ export function ResetPassword() {
     <form className="card form auth" onSubmit={submit}>
       <h1>Новый пароль</h1>
       <p className="muted">Придумайте новый пароль — не короче 8 символов. На других устройствах потребуется войти заново.</p>
-      <label>Новый пароль<input required type="password" minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-      <label>Повторите пароль<input required type="password" minLength={8} autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} /></label>
+      <label>Новый пароль<PasswordInput required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      <label>Повторите пароль<PasswordInput required minLength={8} autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} /></label>
       {error && <Notice kind="error">{error}{/ссылк/i.test(error) && <> <Link to="/forgot-password">Запросить новую</Link></>}</Notice>}
       <button className="btn primary" disabled={busy}>{busy ? 'Сохраняем…' : 'Сохранить и войти'}</button>
     </form>
